@@ -1,0 +1,65 @@
+
+> dshub@0.1.0 lint
+> eslint
+
+
+/Users/hangphuong/Documents/Project-Nghia/DoSo/dshub/src/app/customers/components/customer-dialog.tsx
+  13:10  warning  'Switch' is defined but never used  @typescript-eslint/no-unused-vars
+
+/Users/hangphuong/Documents/Project-Nghia/DoSo/dshub/src/app/customers/components/delete-button.tsx
+  6:10  warning  'useState' is defined but never used  @typescript-eslint/no-unused-vars
+
+/Users/hangphuong/Documents/Project-Nghia/DoSo/dshub/src/app/results/actions.ts
+  140:24  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  142:61  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  239:19  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/hangphuong/Documents/Project-Nghia/DoSo/dshub/src/app/statistics/page.tsx
+    2:29  warning  'CardHeader' is defined but never used              @typescript-eslint/no-unused-vars
+    2:41  warning  'CardTitle' is defined but never used               @typescript-eslint/no-unused-vars
+   44:31  error    Unexpected any. Specify a different type            @typescript-eslint/no-explicit-any
+  167:15  error    'signStr' is never reassigned. Use 'const' instead  prefer-const
+
+/Users/hangphuong/Documents/Project-Nghia/DoSo/dshub/src/app/tickets/new/actions.ts
+  30:24  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  70:17  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/hangphuong/Documents/Project-Nghia/DoSo/dshub/src/app/tickets/new/components/rss-display.tsx
+  3:10  warning  'Card' is defined but never used         @typescript-eslint/no-unused-vars
+  3:16  warning  'CardContent' is defined but never used  @typescript-eslint/no-unused-vars
+
+/Users/hangphuong/Documents/Project-Nghia/DoSo/dshub/src/app/tickets/new/components/ticket-form.tsx
+   7:10  warning  'Select' is defined but never used                @typescript-eslint/no-unused-vars
+   7:18  warning  'SelectContent' is defined but never used         @typescript-eslint/no-unused-vars
+   7:33  warning  'SelectItem' is defined but never used            @typescript-eslint/no-unused-vars
+   7:45  warning  'SelectTrigger' is defined but never used         @typescript-eslint/no-unused-vars
+   7:60  warning  'SelectValue' is defined but never used           @typescript-eslint/no-unused-vars
+   8:16  warning  'CardContent' is defined but never used           @typescript-eslint/no-unused-vars
+  17:6   warning  'Customer' is defined but never used              @typescript-eslint/no-unused-vars
+  17:94  error    Unexpected any. Specify a different type          @typescript-eslint/no-explicit-any
+  19:7   warning  'STATION_MAP' is assigned a value but never used  @typescript-eslint/no-unused-vars
+  56:13  error    Unexpected any. Specify a different type          @typescript-eslint/no-explicit-any
+  58:10  error    Unexpected any. Specify a different type          @typescript-eslint/no-explicit-any
+  59:14  error    Unexpected any. Specify a different type          @typescript-eslint/no-explicit-any
+  76:48  error    Unexpected any. Specify a different type          @typescript-eslint/no-explicit-any
+
+/Users/hangphuong/Documents/Project-Nghia/DoSo/dshub/src/app/tickets/new/components/ticket-list.tsx
+  3:29  warning  'CardHeader' is defined but never used  @typescript-eslint/no-unused-vars
+  3:41  warning  'CardTitle' is defined but never used   @typescript-eslint/no-unused-vars
+
+/Users/hangphuong/Documents/Project-Nghia/DoSo/dshub/src/components/layout/sidebar.tsx
+   8:3  warning  'LayoutDashboard' is defined but never used  @typescript-eslint/no-unused-vars
+  10:3  warning  'LogOut' is defined but never used           @typescript-eslint/no-unused-vars
+
+/Users/hangphuong/Documents/Project-Nghia/DoSo/dshub/src/lib/parser.ts
+   44:7   error  'aliases' is never reassigned. Use 'const' instead  prefer-const
+  160:19  error  Unexpected any. Specify a different type            @typescript-eslint/no-explicit-any
+
+/Users/hangphuong/Documents/Project-Nghia/DoSo/dshub/src/lib/rss.ts
+  35:35  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  51:85  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  52:33  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+✖ 35 problems (17 errors, 18 warnings)
+  2 errors and 0 warnings potentially fixable with the `--fix` option.
+

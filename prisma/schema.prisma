@@ -1,0 +1,105 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "windows"]
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Customer {
+  id                 String   @id @default(cuid())
+  name               String
+  phone              String?
+  isActive           Boolean  @default(true)
+  ratePay            Float    @default(0.72) // default_percent_pay
+  ratePay3           Float    @default(0.72) // default_percent_pay for 3-digit bets
+  ratePay4           Float    @default(0.72) // default_percent_pay for 4-digit bets
+  rateWin            Float    @default(71)   // default_rate_win
+  rateWin3           Float    @default(650)  // default_rate_win for 3-digit bets
+  rateWin4           Float    @default(5500) // default_rate_win for 4-digit bets
+  rateWinDaMNMT      Float    @default(650)  // default_rate_win for đá MN-MT
+  rateWinDaMB        Float    @default(650)  // default_rate_win for đá MB
+  role               String   @default("KHACH") // KHACH or THAU
+  
+  bills              Bill[]
+  
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+}
+
+model Bill {
+  id                 String   @id @default(cuid())
+  customerId         String
+  customer           Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  
+  rawContent         String   // raw_text
+  region             String   
+  date               String   // YYYY-MM-DD
+  
+  totalInvestment    Float    // total_cost
+  totalPrize         Float    @default(0) // total_win
+  status             String   @default("pending") // pending, processed
+  
+  details            BillDetail[]
+  
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+}
+
+model BillDetail {
+  id                 String   @id @default(cuid())
+  billId             String
+  bill               Bill     @relation(fields: [billId], references: [id], onDelete: Cascade)
+  
+  betNumber          String   // number e.g. "03"
+  betType            String   // type e.g. "bao"
+  stationCount       Int      // stations count
+  multiplier         Int      @default(18) // 18 or 27
+  pricePerUnit       Float    // unit_price
+  stationAliases     String?  // JSON list of explicit aliases like ["bp", "hg"]
+  
+  isWin              Boolean  @default(false)
+  winQuantity        Int      @default(0)
+  winStations        String?  // JSON list of station names where the hit occurred
+  
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+}
+
+model LotteryResult {
+  id                 String   @id @default(cuid())
+  drawDate           String   // date
+  region             String   // MN, MT, MB
+  stationCode        String   // station
+  
+  winningNumbers     String   // JSON string
+  
+  createdAt          DateTime @default(now())
+  
+  @@unique([drawDate, stationCode])
+}
+
+model User {
+  id        String   @id @default(cuid())
+  username  String   @unique
+  password  String
+  name      String?
+  role      String   @default("user")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Station {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  aliases   String   // Comma-separated abbreviations, e.g. "bentre, bt, btre"
+  region    String   // "MN", "MT", "MB", or "CHUNG"
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+

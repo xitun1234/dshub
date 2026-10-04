@@ -1,0 +1,129 @@
+"use client"
+
+import Link from "next/link"
+import { usePathname } from "next/navigation"
+import {
+  Users,
+  Ticket,
+  Settings,
+  BarChart3,
+  LogOut,
+  BookOpen
+} from "lucide-react"
+import { logoutUser } from "@/app/auth/actions"
+
+const navigation = [
+  { name: 'Khách hàng & Thầu', href: '/customers', icon: Users },
+  { name: 'Lên Đơn (Phơi Số)', href: '/tickets/new', icon: Ticket },
+  { name: 'Thống Kê 3 Miền', href: '/statistics', icon: BarChart3 },
+  { name: 'Từ điển tên miền', href: '/dictionary', icon: BookOpen },
+  { name: 'Cài Đặt', href: '/settings', icon: Settings },
+]
+
+export function Sidebar({ user }: { user?: { id: string, username: string } }) {
+  const pathname = usePathname()
+
+  // Hide sidebar on login and register pages
+  if (pathname === "/login" || pathname === "/register") {
+    return null
+  }
+
+  return (
+    <>
+      {/* Desktop Sidebar */}
+      <div className="hidden md:flex h-screen flex-col justify-between border-e border-border bg-sidebar-bg min-w-64 max-w-64 transition-colors">
+        <div className="px-4 py-6">
+          {/* Logo Brand */}
+          <div className="flex items-center gap-3 mb-8 px-2 cursor-pointer group">
+            <div className="relative flex shrink-0 items-center justify-center w-11 h-11 rounded-xl bg-gradient-to-br from-rose-500 via-primary to-orange-500 text-white shadow-[0_4px_15px_rgba(254,78,0,0.3)] border border-white/10 transition-transform group-hover:scale-105 group-hover:rotate-3 duration-300">
+              <Ticket className="w-6 h-6 -rotate-12 drop-shadow-md" />
+              <div className="absolute -top-1 -right-1 flex h-3.5 w-3.5">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-3.5 w-3.5 bg-emerald-500 border-2 border-sidebar-bg"></span>
+              </div>
+            </div>
+            <div className="flex flex-col justify-center">
+              <span className="text-xl font-black tracking-tighter leading-none text-foreground drop-shadow-sm flex items-center gap-1">
+                XSKT <span className="bg-gradient-to-r from-primary to-rose-500 rounded px-1.5 py-0.5 text-[10px] text-white uppercase tracking-wider ml-1 mt-0.5">Pro</span>
+              </span>
+              <span className="text-[10px] font-bold uppercase tracking-[0.15em] text-foreground/50 mt-1.5">
+                Quản lý
+              </span>
+            </div>
+          </div>
+
+          <ul className="mt-6 space-y-1">
+            {navigation.map((item) => {
+              const isActive = pathname.startsWith(item.href)
+              return (
+                <li key={item.name}>
+                  <Link
+                    href={item.href}
+                    className={`flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-bold transition-all duration-300 ease-in-out ${isActive
+                      ? 'bg-gradient-to-r from-primary/20 via-primary/10 to-transparent text-primary border border-primary/30 shadow-[0_8px_20px_rgba(254,78,0,0.15)] scale-[1.02]'
+                      : 'text-foreground/60 hover:bg-foreground/5 hover:text-foreground hover:translate-x-1'
+                      }`}
+                  >
+                    <item.icon className={`w-5 h-5 ${isActive ? 'text-primary drop-shadow-[0_0_5px_rgba(254,78,0,0.5)]' : ''}`} />
+                    {item.name}
+                    {isActive && (
+                      <div className="ml-auto w-1.5 h-6 bg-gradient-to-b from-primary to-accent rounded-full shadow-[0_0_10px_rgba(254,78,0,0.5)]" />
+                    )}
+                  </Link>
+                </li>
+              )
+            })}
+          </ul>
+        </div>
+
+        <div className="px-4 py-6 border-t border-border bg-foreground/[0.02]">
+          <div className="flex items-center gap-3 px-2 mb-4 group cursor-pointer glass-morphic p-3 rounded-2xl hvr-glow transition-all">
+            <div className="relative flex shrink-0 items-center justify-center w-12 h-12 rounded-full p-0.5 bg-gradient-to-tr from-primary/30 to-blue-500/30 border border-white/5 shadow-lg group-hover:scale-105 transition-transform duration-300">
+              <div className="relative w-full h-full rounded-full overflow-hidden border border-white/10">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src="/avatar.png"
+                  alt="User Avatar"
+                  className="w-full h-full object-cover"
+                />
+              </div>
+              {/* Status Indicator */}
+              <div className="absolute bottom-0 right-0 w-3.5 h-3.5 bg-emerald-500 border-2 border-sidebar-bg rounded-full shadow-sm"></div>
+              {/* Glow ring */}
+              <div className="absolute -inset-1 bg-gradient-to-tr from-primary/20 to-blue-500/20 rounded-full blur-md opacity-0 group-hover:opacity-100 transition-opacity"></div>
+            </div>
+            <div className="flex flex-col min-w-0">
+              <span className="text-sm font-black text-foreground truncate group-hover:text-primary transition-colors">{user?.username || 'Người dùng'}</span>
+              <span className="text-[10px] text-foreground/50 uppercase tracking-widest font-bold">Thành viên Pro</span>
+            </div>
+          </div>
+          <button
+            onClick={() => logoutUser()}
+            className="w-full flex items-center gap-3 px-4 py-3 text-sm font-bold text-rose-500 hover:bg-rose-500/10 rounded-xl transition-all duration-300 border border-transparent hover:border-rose-500/20 active:scale-95"
+          >
+            <LogOut className="w-4 h-4" />
+            Đăng xuất
+          </button>
+        </div>
+      </div>
+
+      {/* Mobile Bottom Navigation */}
+      <div className="md:hidden fixed bottom-0 left-0 right-0 border-t border-border bg-card-bg/95 backdrop-blur-md z-50 px-2 py-2 flex justify-around items-center h-16 shadow-[0_-4px_15px_rgba(0,0,0,0.3)]">
+        {navigation.map((item) => {
+          const isActive = pathname.startsWith(item.href)
+          return (
+            <Link
+              key={item.name}
+              href={item.href}
+              className={`flex flex-col items-center justify-center w-16 gap-1 ${isActive ? 'text-primary' : 'text-foreground/50 hover:text-foreground/80'
+                }`}
+            >
+              <item.icon className={`w-5 h-5 ${isActive ? 'text-primary drop-shadow-[0_0_8px_rgba(254,78,0,0.5)]' : ''}`} />
+              <span className="text-[10px] leading-tight truncate w-full text-center">{item.name}</span>
+            </Link>
+          )
+        })}
+      </div>
+    </>
+  )
+}

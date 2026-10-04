@@ -1,26 +1,97 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  color-scheme: light;
+  --background: #f6f8fb;
+  --foreground: #111827;
+  --primary: #4F46E5;
+  --primary-light: #EEF2FF;
+  --primary-surface: rgba(79, 70, 229, 0.05);
+  --primary-border: rgba(79, 70, 229, 0.15);
+  --primary-glow: rgba(79, 70, 229, 0.2);
+  --accent: #4338CA;
+  --card-bg: #ffffff;
+  --sidebar-bg: #ffffff;
+  --border: #E5E7EB;
+}
+
+.dark {
+  color-scheme: dark;
+  --background: #09090b;
+  --foreground: #f8fafc;
+  --primary: #6366f1;
+  --primary-light: #4338ca;
+  --primary-surface: rgba(99, 102, 241, 0.1);
+  --primary-border: rgba(99, 102, 241, 0.2);
+  --primary-glow: rgba(99, 102, 241, 0.3);
+  --accent: #818cf8;
+  --card-bg: #18181b;
+  --sidebar-bg: #0f0f13;
+  --border: #27272a;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --color-primary: var(--primary);
+  --color-primary-light: var(--primary-light);
+  --color-primary-surface: var(--primary-surface);
+  --color-primary-border: var(--primary-border);
+  --color-primary-glow: var(--primary-glow);
+  --color-accent: var(--accent);
+  --color-card-bg: var(--card-bg);
+  --color-sidebar-bg: var(--sidebar-bg);
+  --color-border: var(--border);
+  
+  --font-sans: var(--font-jakarta);
+  --font-mono: var(--font-roboto-mono);
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans), Arial, Helvetica, sans-serif;
+}
+
+/* Premium Button Utilities */
+.btn-premium-primary {
+  @apply relative overflow-hidden transition-all duration-300 active:scale-95 shadow-lg bg-gradient-to-r from-primary via-accent to-primary text-white border-none;
+  background-size: 200% auto;
+}
+
+.btn-premium-primary:hover {
+  background-position: right center;
+  @apply shadow-[0_0_20px_var(--primary-glow)] scale-[1.02];
+}
+
+.btn-premium-secondary {
+  @apply relative overflow-hidden transition-all duration-300 active:scale-95 shadow-lg bg-card-bg/20 backdrop-blur-md border border-white/10 text-foreground;
+  background-size: 200% auto;
+}
+
+.btn-premium-secondary:hover {
+  @apply bg-card-bg/30 border-white/20 shadow-xl scale-[1.02];
+}
+
+/* Micro-animations */
+.hvr-lift {
+  @apply transition-transform duration-300 hover:-translate-y-1 hover:shadow-2xl;
+}
+
+.hvr-glow {
+  @apply transition-all duration-300 hover:shadow-[0_0_15px_var(--primary-glow)];
+}
+
+/* Glassmorphism utility */
+.glass-morphic {
+  @apply bg-card-bg/40 backdrop-blur-xl border border-white/10 shadow-2xl;
+}
+
+/* Segment Control Style (for Region Buttons) */
+.btn-segment {
+  @apply bg-card-bg/50 border border-border/50 text-foreground/60 transition-all hover:bg-foreground/5;
+}
+
+.btn-segment-active {
+  @apply bg-primary text-white shadow-md border-primary ring-2 ring-primary/20 scale-[1.02];
 }
