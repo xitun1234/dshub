@@ -90,7 +90,7 @@ export function RssDisplay({
             <tbody className="divide-y divide-border">
               {prizeOrder.map(prize => (
                 <tr key={prize.key} className="hover:bg-primary/5">
-                  <td className="p-3 font-semibold text-foreground/60 bg-background/50">{prize.name}</td>
+                  <td className="p-3 font-semibold text-muted-foreground bg-muted/50">{prize.name}</td>
                   {stationNames.map(station => {
                     const data = results[station][prize.key]
                     return (

@@ -1,11 +1,14 @@
 "use server"
 
-import prisma from "@/lib/prisma"
-import { revalidatePath } from "next/cache"
 import { DEFAULT_STATIONS } from "@/lib/default-stations"
+import { requireUser } from "@/lib/auth"
+import prisma from "@/lib/prisma"
+import { STATIONS_CACHE_TAG } from "@/lib/stations"
+import { revalidatePath, updateTag } from "next/cache"
 
 export async function updateStationAliases(id: string, rawAliases: string) {
   try {
+    await requireUser()
     // Process and normalize aliases: split, trim, lowercase, filter empty
     const normalized = rawAliases
       .split(",")
@@ -22,6 +25,7 @@ export async function updateStationAliases(id: string, rawAliases: string) {
     })
 
     // Revalidate paths to reflect updates
+    updateTag(STATIONS_CACHE_TAG)
     revalidatePath("/dictionary")
     revalidatePath("/tickets/new")
     revalidatePath("/results")
@@ -36,6 +40,7 @@ export async function updateStationAliases(id: string, rawAliases: string) {
 
 export async function resetToDefault() {
   try {
+    await requireUser()
     // Delete all current records
     await prisma.station.deleteMany()
 
@@ -48,6 +53,7 @@ export async function resetToDefault() {
       }))
     })
 
+    updateTag(STATIONS_CACHE_TAG)
     revalidatePath("/dictionary")
     revalidatePath("/tickets/new")
     revalidatePath("/results")

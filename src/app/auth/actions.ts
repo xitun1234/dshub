@@ -77,7 +77,10 @@ export async function seedAdmin() {
     const existing = await prisma.user.findUnique({ where: { username: 'nghia' }});
     if (existing) return { message: "Admin already exists" };
 
-    const hashedPassword = await bcrypt.hash('zxc123', 10);
+    const seedPassword = process.env.SEED_ADMIN_PASSWORD;
+    if (!seedPassword) return { message: "SEED_ADMIN_PASSWORD is not configured" };
+
+    const hashedPassword = await bcrypt.hash(seedPassword, 10);
     await prisma.user.create({
         data: {
             username: 'nghia',
@@ -88,4 +91,3 @@ export async function seedAdmin() {
     });
     return { success: true, message: "Admin seeded successfully" };
 }
-

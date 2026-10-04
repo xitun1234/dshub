@@ -1,5 +1,8 @@
+import { unstable_cache } from "next/cache"
 import prisma from "./prisma"
 import { DEFAULT_STATIONS } from "./default-stations"
+
+export const STATIONS_CACHE_TAG = "stations"
 
 export interface StationData {
   id: string
@@ -8,27 +11,33 @@ export interface StationData {
   region: string
 }
 
-export async function getStations(): Promise<StationData[]> {
+async function loadStations(): Promise<StationData[]> {
   let dbStations = await prisma.station.findMany({
     orderBy: { name: "asc" }
   })
-  
+
   if (dbStations.length === 0) {
-    // Populate the database with default stations
     await prisma.station.createMany({
       data: DEFAULT_STATIONS.map(s => ({
         name: s.name,
         region: s.region,
         aliases: s.aliases.join(", ")
-      }))
+      })),
+      skipDuplicates: true
     })
     dbStations = await prisma.station.findMany({
       orderBy: { name: "asc" }
     })
   }
-  
+
   return dbStations
 }
+
+export const getStations = unstable_cache(
+  loadStations,
+  [STATIONS_CACHE_TAG],
+  { tags: [STATIONS_CACHE_TAG], revalidate: false }
+)
 
 export interface ParserConfig {
   customAliases: string[]

@@ -13,6 +13,8 @@ datasource db {
 
 model Customer {
   id                 String   @id @default(cuid())
+  userId             String
+  user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   name               String
   phone              String?
   isActive           Boolean  @default(true)
@@ -30,6 +32,8 @@ model Customer {
   
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
+
+  @@index([userId, createdAt])
 }
 
 model Bill {
@@ -90,6 +94,7 @@ model User {
   password  String
   name      String?
   role      String   @default("user")
+  customers Customer[]
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
@@ -102,4 +107,3 @@ model Station {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
-

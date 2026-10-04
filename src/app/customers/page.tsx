@@ -7,19 +7,19 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import prisma from "@/lib/prisma"
+import { getCustomers } from "@/lib/customers"
+import { requireUser } from "@/lib/auth"
 import { Edit, UserPlus } from "lucide-react"
 import { CustomerDialog } from "./components/customer-dialog"
 import { DeleteButton } from "./components/delete-button"
 
 export default async function CustomersPage() {
-  const customers = await prisma.customer.findMany({
-    orderBy: { createdAt: 'asc' } // Changed order to keep Thau creation logic sequential
-  })
+  const user = await requireUser()
+  const customers = await getCustomers(user.id)
 
   return (
     <div className="container mx-auto p-4 md:p-8 max-w-6xl">
-      <div className="flex items-center justify-between mb-8">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Quản lý Khách Hàng / Thầu</h1>
           <p className="text-muted-foreground mt-2">
@@ -55,7 +55,7 @@ export default async function CustomersPage() {
           <TableBody>
             {customers.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={12} className="h-24 text-center text-foreground/50">
+                <TableCell colSpan={12} className="h-24 text-center text-muted-foreground">
                   Chưa có khách hàng nào.
                 </TableCell>
               </TableRow>
@@ -77,7 +77,7 @@ export default async function CustomersPage() {
                       Đang hoạt động
                     </span>
                   ) : (
-                    <span className="px-2 py-1 rounded-md text-[10px] font-black tracking-widest uppercase bg-foreground/10 text-foreground/50 border border-foreground/20">
+                    <span className="px-2 py-1 rounded-md text-[10px] font-black tracking-widest uppercase bg-muted text-muted-foreground border border-border">
                       Đã tắt
                     </span>
                   )}
@@ -89,13 +89,13 @@ export default async function CustomersPage() {
                 <TableCell className="text-sky-400 font-medium">
                   {(customer.ratePay3 * 100).toFixed(0)}%
                 </TableCell>
-                <TableCell className="text-amber-500 font-medium">{(customer as any).rateWin3}</TableCell>
+                <TableCell className="text-amber-500 font-medium">{customer.rateWin3}</TableCell>
                 <TableCell className="text-blue-400 font-medium">
-                  {(((customer as any).ratePay4 ?? 0.72) * 100).toFixed(0)}%
+                  {(customer.ratePay4 * 100).toFixed(0)}%
                 </TableCell>
-                <TableCell className="text-pink-500 font-medium">{(customer as any).rateWin4 ?? 5500}</TableCell>
-                <TableCell className="text-emerald-400 font-medium">{(customer as any).rateWinDaMNMT}</TableCell>
-                <TableCell className="text-purple-400 font-medium">{(customer as any).rateWinDaMB}</TableCell>
+                <TableCell className="text-pink-500 font-medium">{customer.rateWin4}</TableCell>
+                <TableCell className="text-emerald-400 font-medium">{customer.rateWinDaMNMT}</TableCell>
+                <TableCell className="text-purple-400 font-medium">{customer.rateWinDaMB}</TableCell>
                 <TableCell className="text-right">
                   <div className="flex justify-end gap-2">
                     <CustomerDialog customer={customer}>

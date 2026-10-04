@@ -16,9 +16,52 @@ export type ParseResult = {
   bets: ParsedBet[]
 }
 
+const normalizeKeyword = (value: string) => value
+  .toLowerCase()
+  .normalize("NFD")
+  .replace(/\p{Diacritic}/gu, "")
+  .replace(/đ/g, "d")
+  .replace(/\s/g, "")
+
 const isBetType = (t: string) => {
-  const norm = t.toLowerCase().replace(/đ/g, "d");
+  const norm = normalizeKeyword(t);
   return ["bao", "blo", "lo", "b", "da", "d", "xien", "x", "dd", "dauduoi", "xc", "xiuchu", "bacang", "dau", "duoi", "7lo", "7l", "dx"].includes(norm);
+}
+
+const DEFAULT_STATION_ALIASES = [
+  'tphcm', 'hcm', 'tp', 'la', 'longan', 'bp', 'binhphuoc', 'hg', 'haugiang', 'bt', 'bentre', 'vt', 'vungtau',
+  'bl', 'baclieu', 'dn', 'dongnai', 'ct', 'cantho', 'st', 'soctrang', 'tn', 'tayninh', 'ag', 'angiang', 'bth',
+  'binhthuan', 'vl', 'vinhlong', 'bd', 'binhduong', 'tv', 'travinh', 'dt', 'dongthap', 'cm', 'camau', 'tg',
+  'tiengiang', 'kg', 'kiengiang', 'dl', 'dalat', 'tth', 'hue', 'hu', 'py', 'phuyen', 'dlk', 'daklak', 'dak', 'qnm',
+  'quangnam', 'qnam', 'dnang', 'danang', 'kh', 'khanhhoa', 'bdi', 'binhdinh', 'qt', 'quangtri', 'qb', 'quangbinh',
+  'gl', 'gialai', 'nt', 'ninhthuan', 'qng', 'quangngai', 'dno', 'daknong', 'kt', 'kontum', 'hn', 'hanoi',
+  'tb', 'thaibinh', 'bn', 'bacninh', 'hp', 'haiphong', 'nd', 'namdinh', 'qn', 'quangninh',
+  'mb', 'mn', 'mt'
+]
+
+const editDistanceAtMostOne = (left: string, right: string) => {
+  if (left === right) return true
+  if (Math.abs(left.length - right.length) > 1) return false
+
+  const shorter = left.length <= right.length ? left : right
+  const longer = left.length <= right.length ? right : left
+  let shortIndex = 0
+  let longIndex = 0
+  let edits = 0
+
+  while (shortIndex < shorter.length && longIndex < longer.length) {
+    if (shorter[shortIndex] === longer[longIndex]) {
+      shortIndex++
+      longIndex++
+      continue
+    }
+
+    if (++edits > 1) return false
+    if (shorter.length === longer.length) shortIndex++
+    longIndex++
+  }
+
+  return edits + (longIndex < longer.length ? 1 : 0) <= 1
 }
 
 export type ParserAliasesConfig = {
@@ -28,34 +71,69 @@ export type ParserAliasesConfig = {
   fourDaiAliases?: string[]
 }
 
-const isStationAlias = (t: string, aliasesConfig?: ParserAliasesConfig) => {
-  const norm = t.toLowerCase().replace(/đ/g, "d");
-  if (norm.match(/^[1-4]d(ai)?$/)) return true;
-  if (norm === "dai") return true;
-  
-  const aliases = [
-    'tphcm', 'hcm', 'tp', 'la', 'longan', 'bp', 'binhphuoc', 'hg', 'haugiang', 'bt', 'bentre', 'vt', 'vungtau', 
-    'bl', 'baclieu', 'dn', 'dongnai', 'ct', 'cantho', 'st', 'soctrang', 'tn', 'tayninh', 'ag', 'angiang', 'bth', 
-    'binhthuan', 'vl', 'vinhlong', 'bd', 'binhduong', 'tv', 'travinh', 'dt', 'dongthap', 'cm', 'camau', 'tg', 
-    'tiengiang', 'kg', 'kiengiang', 'dl', 'dalat', 'tth', 'hue', 'hu', 'py', 'phuyen', 'dlk', 'daklak', 'dak', 'qnm', 
-    'quangnam', 'qnam', 'dnang', 'danang', 'kh', 'khanhhoa', 'bdi', 'binhdinh', 'qt', 'quangtri', 'qb', 'quangbinh', 
-    'gl', 'gialai', 'nt', 'ninhthuan', 'qng', 'quangngai', 'dno', 'daknong', 'kt', 'kontum', 'hn', 'hanoi', 
-    'tb', 'thaibinh', 'bn', 'bacninh', 'hp', 'haiphong', 'nd', 'namdinh', 'qn', 'quangninh',
-    'mb', 'mn', 'mt'
-  ];
-  
-  if (aliases.includes(norm)) return true;
-  
-  if (aliasesConfig && aliasesConfig.customAliases.length > 0) {
-    return aliasesConfig.customAliases.includes(norm);
-  }
-  
-  return false;
+const resolveStationAlias = (t: string, aliasesConfig?: ParserAliasesConfig): string | null => {
+  const norm = normalizeKeyword(t);
+  if (norm.match(/^[1-4]d(ai)?$/) || norm === "dai") return norm;
+
+  const aliases = Array.from(new Set([
+    ...DEFAULT_STATION_ALIASES,
+    ...(aliasesConfig?.customAliases || []).map(normalizeKeyword)
+  ]))
+
+  if (aliases.includes(norm)) return norm
+
+  // Chỉ sửa gần đúng tên đài dài để tránh đoán sai các mã ngắn như bd, dn, qt.
+  if (norm.length < 5 || !/^[a-z]+$/.test(norm)) return null
+  const candidates = aliases.filter(alias =>
+    alias.length >= 5 && /^[a-z]+$/.test(alias) && editDistanceAtMostOne(norm, alias)
+  )
+
+  return candidates.length === 1 ? candidates[0] : null
 }
 
 const isAmount = (t: string) => {
   return /^[0-9]+([.,][0-9]+)?[nkcd]$/i.test(t);
 }
+
+const splitInlineBet = (token: string): string[] => {
+  const match = token.match(/^(.+?)([0-9]+(?:[.,][0-9]+)?[nkcd]?)$/i)
+  if (!match || !isBetType(match[1])) return [token]
+  return [match[1], match[2]]
+}
+
+export const normalizeTicketInput = (rawText: string): string => rawText
+  .split(/\r?\n/)
+  .map(rawLine => {
+    let line = rawLine.trim()
+    if (!line) return ""
+
+    const decimalAmounts: string[] = []
+    line = line.replace(/[0-9]+[.,][0-9]+(?=[nkcd]\b)/gi, value => {
+      const index = decimalAmounts.push(value.replace(",", ".")) - 1
+      return `__amount_decimal_${index}__`
+    })
+
+    line = line.replace(/\s*[.;:]+\s*/g, ". ")
+    line = line.replace(/\s*,\s*/g, ". ")
+    line = line.replace(/([1-4])\s*[dđ](?:ai|ài)?\b/giu, "$1dai")
+    line = line.replace(/\b7\s*l(?:o|ô)?\b/giu, "7lo")
+    line = line.replace(/\s+/g, " ").trim()
+
+    decimalAmounts.forEach((value, index) => {
+      line = line.replace(`__amount_decimal_${index}__`, value)
+    })
+
+    line = line.replace(/([^\s.]+)\.\s*([0-9]+(?:[.,][0-9]+)?[nkcd])\b/gi, (match, type, amount) =>
+      isBetType(type) ? `${type}${amount}` : match
+    )
+    line = line.replace(/([^\s.]+)\s+([0-9]+(?:[.,][0-9]+)?[nkcd])\b/gi, (match, type, amount) =>
+      isBetType(type) ? `${type}${amount}` : match
+    )
+
+    return line
+  })
+  .filter(Boolean)
+  .join("\n")
 
 const parseStationTokens = (tokens: string[], aliasesConfig?: ParserAliasesConfig) => {
   let count = 0;
@@ -66,7 +144,7 @@ const parseStationTokens = (tokens: string[], aliasesConfig?: ParserAliasesConfi
   const fourDai = aliasesConfig?.fourDaiAliases || ['4dai', '4d', '4đ', '4đài'];
 
   for (const t of tokens) {
-    const norm = t.toLowerCase().replace(/đ/g, "d");
+    const norm = normalizeKeyword(t);
     const normForMatch = t.toLowerCase();
     
     if (twoDai.includes(normForMatch) || norm.includes("2dai") || norm === "2d") {
@@ -88,7 +166,7 @@ const parseStationTokens = (tokens: string[], aliasesConfig?: ParserAliasesConfi
 }
 
 const mapBetTypeToMultiplier = (type: string, region: string, isThreeDigit: boolean = false, isFourDigit: boolean = false) => {
-  const norm = type.toLowerCase().replace(/đ/g, "d").replace(/\s/g, "");
+  const norm = normalizeKeyword(type);
   const isSouthOrCentral = region === "MN" || region === "MT";
 
   if (norm.includes("7lo") || norm === "7l") return 7;
@@ -116,7 +194,7 @@ export const parseTicketInput = (rawText: string, region: string = "MN", aliases
   if (!rawText.trim()) return { isValid: false, totalPoints: 0, bets: [] };
 
   try {
-    const lines = rawText.split("\n").filter(l => l.trim() !== "");
+    const lines = normalizeTicketInput(rawText).split("\n").filter(l => l.trim() !== "");
     let totalPoints = 0;
     const bets: ParsedBet[] = [];
 
@@ -134,17 +212,7 @@ export const parseTicketInput = (rawText: string, region: string = "MN", aliases
       // Reduce separators. Hyphens are preserved for number formats like '25-52'
       line = line.replace(/[.,;:]+(\s+|$)/g, " ");
       
-      // Expand inline bets like b10n -> b 10n
-      line = line.replace(/\bb([0-9]+(?:[.,][0-9]+)?(?:[nkcd])?)\b/gi, " b $1 ");
-      line = line.replace(/\bda([0-9]+(?:[.,][0-9]+)?(?:[nkcd])?)\b/gi, " da $1 ");
-      line = line.replace(/\bdx([0-9]+(?:[.,][0-9]+)?(?:[nkcd])?)\b/gi, " dx $1 ");
-      line = line.replace(/\bd([0-9]+(?:[.,][0-9]+)?(?:[nkcd])?)\b/gi, " d $1 ");
-      line = line.replace(/\bx([0-9]+(?:[.,][0-9]+)?(?:[nkcd])?)\b/gi, " x $1 ");
-      line = line.replace(/\bdd([0-9]+(?:[.,][0-9]+)?(?:[nkcd])?)\b/gi, " dd $1 ");
-      line = line.replace(/\bxc([0-9]+(?:[.,][0-9]+)?(?:[nkcd])?)\b/gi, " xc $1 ");
-      line = line.replace(/\b7lo([0-9]+(?:[.,][0-9]+)?(?:[nkcd])?)\b/gi, " 7lo $1 ");
-      
-      const tokens = line.split(/\s+/).filter(Boolean);
+      const tokens = line.split(/\s+/).filter(Boolean).flatMap(splitInlineBet);
 
       let tempStations: string[] = [];
       let pendingNumbers: string[] = [];
@@ -153,8 +221,9 @@ export const parseTicketInput = (rawText: string, region: string = "MN", aliases
       for (let i = 0; i < tokens.length; i++) {
         const t = tokens[i];
         
-        if (isStationAlias(t, aliasesConfig)) {
-           tempStations.push(t);
+        const stationAlias = resolveStationAlias(t, aliasesConfig)
+        if (stationAlias) {
+           tempStations.push(stationAlias);
         } else if (isBetType(t)) {
            if (tempStations.length > 0) {
               currentStationTokens = tempStations;
@@ -186,7 +255,7 @@ export const parseTicketInput = (rawText: string, region: string = "MN", aliases
               const isFourDigit = parsedNumbers.some(num => num.length === 4);
               const multiplier = mapBetTypeToMultiplier(currentType, region, isThreeDigit, isFourDigit);
               
-              const typeLower = currentType.toLowerCase().replace(/đ/g, "d");
+              const typeLower = normalizeKeyword(currentType);
               const isDa = typeLower === "da" ||
                            typeLower.includes("xien") ||
                            typeLower === "x" ||

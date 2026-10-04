@@ -35,7 +35,7 @@ export default function SettingsPage() {
 
       <div className="grid gap-6">
         {/* Appearance Section */}
-        <Card className="bg-card-bg border-border/40 shadow-xl overflow-hidden backdrop-blur-sm border-none">
+        <Card className="bg-card/90 border-border shadow-xl overflow-hidden backdrop-blur-sm">
           <CardHeader className="bg-foreground/[0.03] border-b border-border/40">
             <CardTitle className="text-lg font-bold flex items-center gap-2 text-foreground">
               <Sun className="w-5 h-5 text-orange-500" />
@@ -43,13 +43,13 @@ export default function SettingsPage() {
             </CardTitle>
           </CardHeader>
           <CardContent className="p-6">
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <button
                 onClick={() => setTheme("light")}
                 className={`flex flex-col items-center gap-2 p-6 rounded-2xl border-2 transition-all hvr-lift ${
                   theme === "light" 
                     ? "border-primary bg-primary/10 text-primary shadow-[0_8px_25px_rgba(254,78,0,0.2)]" 
-                    : "border-border/40 hover:border-border/60 bg-card-bg/50 backdrop-blur-sm"
+                    : "border-border hover:border-primary-border bg-card backdrop-blur-sm hover:bg-primary-surface"
                 }`}
               >
                 <div className={`p-3 rounded-xl ${theme === "light" ? "bg-primary text-white" : "bg-foreground/5"}`}>
@@ -62,7 +62,7 @@ export default function SettingsPage() {
                 className={`flex flex-col items-center gap-2 p-6 rounded-2xl border-2 transition-all hvr-lift ${
                   theme === "dark" 
                     ? "border-primary bg-primary/10 text-primary shadow-[0_8px_25px_rgba(254,78,0,0.2)]" 
-                    : "border-border/40 hover:border-border/60 bg-card-bg/50 backdrop-blur-sm"
+                    : "border-border hover:border-primary-border bg-card backdrop-blur-sm hover:bg-primary-surface"
                 }`}
               >
                 <div className={`p-3 rounded-xl ${theme === "dark" ? "bg-primary text-white" : "bg-foreground/5"}`}>
@@ -75,7 +75,7 @@ export default function SettingsPage() {
                 className={`flex flex-col items-center gap-2 p-6 rounded-2xl border-2 transition-all hvr-lift ${
                   theme === "system" 
                     ? "border-primary bg-primary/10 text-primary shadow-[0_8px_25px_rgba(254,78,0,0.2)]" 
-                    : "border-border/40 hover:border-border/60 bg-card-bg/50 backdrop-blur-sm"
+                    : "border-border hover:border-primary-border bg-card backdrop-blur-sm hover:bg-primary-surface"
                 }`}
               >
                 <div className={`p-3 rounded-xl ${theme === "system" ? "bg-primary text-white" : "bg-foreground/5"}`}>
@@ -88,7 +88,7 @@ export default function SettingsPage() {
         </Card>
 
         {/* Account Section */}
-        <Card className="bg-card-bg border-border/40 shadow-xl overflow-hidden backdrop-blur-sm border-none">
+        <Card className="bg-card/90 border-border shadow-xl overflow-hidden backdrop-blur-sm">
           <CardHeader className="bg-foreground/[0.03] border-b border-border/40">
             <CardTitle className="text-lg font-bold flex items-center gap-2 text-foreground">
               <User className="w-5 h-5 text-blue-500" />
@@ -127,7 +127,7 @@ export default function SettingsPage() {
 
         {/* Version Info */}
         <div className="text-center py-8">
-            <p className="text-[10px] font-bold text-foreground/20 uppercase tracking-[0.3em]">
+            <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-[0.3em]">
                 XSKT Manager v1.0.4 • 2026
             </p>
         </div>

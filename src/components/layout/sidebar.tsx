@@ -31,11 +31,11 @@ export function Sidebar({ user }: { user?: { id: string, username: string } }) {
   return (
     <>
       {/* Desktop Sidebar */}
-      <div className="hidden md:flex h-screen flex-col justify-between border-e border-border bg-sidebar-bg min-w-64 max-w-64 transition-colors">
+      <div className="hidden md:flex h-screen flex-col justify-between border-e border-border/80 bg-sidebar-bg/95 backdrop-blur-xl min-w-64 max-w-64 transition-colors shadow-[8px_0_30px_var(--shadow-color)] z-20">
         <div className="px-4 py-6">
           {/* Logo Brand */}
           <div className="flex items-center gap-3 mb-8 px-2 cursor-pointer group">
-            <div className="relative flex shrink-0 items-center justify-center w-11 h-11 rounded-xl bg-gradient-to-br from-rose-500 via-primary to-orange-500 text-white shadow-[0_4px_15px_rgba(254,78,0,0.3)] border border-white/10 transition-transform group-hover:scale-105 group-hover:rotate-3 duration-300">
+            <div className="relative flex shrink-0 items-center justify-center w-11 h-11 rounded-xl bg-gradient-to-br from-primary via-accent to-sky-500 text-white shadow-[0_8px_24px_var(--primary-glow)] border border-white/20 transition-transform group-hover:scale-105 group-hover:rotate-3 duration-300">
               <Ticket className="w-6 h-6 -rotate-12 drop-shadow-md" />
               <div className="absolute -top-1 -right-1 flex h-3.5 w-3.5">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
@@ -46,7 +46,7 @@ export function Sidebar({ user }: { user?: { id: string, username: string } }) {
               <span className="text-xl font-black tracking-tighter leading-none text-foreground drop-shadow-sm flex items-center gap-1">
                 XSKT <span className="bg-gradient-to-r from-primary to-rose-500 rounded px-1.5 py-0.5 text-[10px] text-white uppercase tracking-wider ml-1 mt-0.5">Pro</span>
               </span>
-              <span className="text-[10px] font-bold uppercase tracking-[0.15em] text-foreground/50 mt-1.5">
+              <span className="text-[10px] font-bold uppercase tracking-[0.15em] text-muted-foreground mt-1.5">
                 Quản lý
               </span>
             </div>
@@ -60,8 +60,8 @@ export function Sidebar({ user }: { user?: { id: string, username: string } }) {
                   <Link
                     href={item.href}
                     className={`flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-bold transition-all duration-300 ease-in-out ${isActive
-                      ? 'bg-gradient-to-r from-primary/20 via-primary/10 to-transparent text-primary border border-primary/30 shadow-[0_8px_20px_rgba(254,78,0,0.15)] scale-[1.02]'
-                      : 'text-foreground/60 hover:bg-foreground/5 hover:text-foreground hover:translate-x-1'
+                      ? 'bg-gradient-to-r from-primary/15 via-primary/8 to-transparent text-primary border border-primary-border shadow-[0_8px_20px_var(--primary-glow)] scale-[1.01]'
+                      : 'text-muted-foreground hover:bg-primary-surface hover:text-foreground hover:translate-x-1'
                       }`}
                   >
                     <item.icon className={`w-5 h-5 ${isActive ? 'text-primary drop-shadow-[0_0_5px_rgba(254,78,0,0.5)]' : ''}`} />
@@ -76,10 +76,10 @@ export function Sidebar({ user }: { user?: { id: string, username: string } }) {
           </ul>
         </div>
 
-        <div className="px-4 py-6 border-t border-border bg-foreground/[0.02]">
+        <div className="px-4 py-6 border-t border-border bg-muted/30">
           <div className="flex items-center gap-3 px-2 mb-4 group cursor-pointer glass-morphic p-3 rounded-2xl hvr-glow transition-all">
-            <div className="relative flex shrink-0 items-center justify-center w-12 h-12 rounded-full p-0.5 bg-gradient-to-tr from-primary/30 to-blue-500/30 border border-white/5 shadow-lg group-hover:scale-105 transition-transform duration-300">
-              <div className="relative w-full h-full rounded-full overflow-hidden border border-white/10">
+            <div className="relative flex shrink-0 items-center justify-center w-12 h-12 rounded-full p-0.5 bg-gradient-to-tr from-primary/30 to-sky-500/30 border border-border shadow-lg group-hover:scale-105 transition-transform duration-300">
+              <div className="relative w-full h-full rounded-full overflow-hidden border border-border">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src="/avatar.png"
@@ -94,7 +94,7 @@ export function Sidebar({ user }: { user?: { id: string, username: string } }) {
             </div>
             <div className="flex flex-col min-w-0">
               <span className="text-sm font-black text-foreground truncate group-hover:text-primary transition-colors">{user?.username || 'Người dùng'}</span>
-              <span className="text-[10px] text-foreground/50 uppercase tracking-widest font-bold">Thành viên Pro</span>
+              <span className="text-[10px] text-muted-foreground uppercase tracking-widest font-bold">Thành viên Pro</span>
             </div>
           </div>
           <button
@@ -107,15 +107,33 @@ export function Sidebar({ user }: { user?: { id: string, username: string } }) {
         </div>
       </div>
 
+      {/* Mobile Top Header */}
+      <div className="md:hidden fixed top-0 left-0 right-0 border-b border-border/80 bg-sidebar-bg/90 backdrop-blur-xl z-50 px-4 h-14 flex items-center justify-between shadow-lg">
+        <div className="flex items-center gap-2">
+          <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-gradient-to-br from-primary to-accent text-white shadow-sm">
+            <Ticket className="w-4 h-4 -rotate-12" />
+          </div>
+          <span className="font-black text-foreground">
+            XSKT <span className="bg-gradient-to-r from-primary to-rose-500 rounded px-1 py-0.5 text-[8px] text-white uppercase ml-0.5">Pro</span>
+          </span>
+        </div>
+        <button
+          onClick={() => logoutUser()}
+          className="text-rose-500 p-2 hover:bg-rose-500/10 rounded-full transition-colors"
+        >
+          <LogOut className="w-4 h-4" />
+        </button>
+      </div>
+
       {/* Mobile Bottom Navigation */}
-      <div className="md:hidden fixed bottom-0 left-0 right-0 border-t border-border bg-card-bg/95 backdrop-blur-md z-50 px-2 py-2 flex justify-around items-center h-16 shadow-[0_-4px_15px_rgba(0,0,0,0.3)]">
+      <div className="md:hidden fixed bottom-0 left-0 right-0 border-t border-border/80 bg-sidebar-bg/90 backdrop-blur-xl z-50 px-2 py-2 flex justify-around items-center h-16 shadow-[0_-8px_28px_var(--shadow-color)] pb-[env(safe-area-inset-bottom)]">
         {navigation.map((item) => {
           const isActive = pathname.startsWith(item.href)
           return (
             <Link
               key={item.name}
               href={item.href}
-              className={`flex flex-col items-center justify-center w-16 gap-1 ${isActive ? 'text-primary' : 'text-foreground/50 hover:text-foreground/80'
+              className={`flex flex-col items-center justify-center w-16 gap-1 font-semibold ${isActive ? 'text-primary' : 'text-muted-foreground hover:text-foreground'
                 }`}
             >
               <item.icon className={`w-5 h-5 ${isActive ? 'text-primary drop-shadow-[0_0_8px_rgba(254,78,0,0.5)]' : ''}`} />

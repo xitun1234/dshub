@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { decrypt } from "@/lib/auth";
 
 // 1. Specify protected and public routes
-const protectedRoutes = ["/", "/customers", "/tickets", "/statistics", "/results"];
+const protectedRoutes = ["/", "/customers", "/tickets", "/statistics", "/results", "/dictionary", "/settings"];
 const publicRoutes = ["/login", "/register"];
 
 export default async function proxy(req: NextRequest) {
@@ -41,4 +41,3 @@ export default async function proxy(req: NextRequest) {
 export const config = {
   matcher: ["/((?!api|_next/static|_next/image|.*\\.png$).*)"],
 };
-

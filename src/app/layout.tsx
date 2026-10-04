@@ -46,7 +46,7 @@ export default async function RootLayout({
           disableTransitionOnChange
         >
           <Sidebar user={user} />
-          <main className="flex-1 overflow-y-auto w-full pb-16 md:pb-0">
+          <main className="flex-1 overflow-y-auto w-full pt-14 pb-20 md:pt-0 md:pb-0">
             {children}
           </main>
         </ThemeProvider>

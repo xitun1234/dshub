@@ -23,45 +23,45 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-950 via-blue-950 to-slate-950 p-4">
+    <div data-auth-page className="min-h-screen w-full flex items-center justify-center bg-background p-4 relative overflow-hidden">
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-blue-600/10 rounded-full blur-3xl animate-pulse"></div>
-        <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-indigo-600/10 rounded-full blur-3xl animate-pulse delay-700"></div>
+        <div className="absolute -top-24 -left-24 w-[28rem] h-[28rem] bg-primary/12 rounded-full blur-3xl"></div>
+        <div className="absolute -bottom-32 -right-24 w-[30rem] h-[30rem] bg-sky-500/10 rounded-full blur-3xl"></div>
       </div>
 
-      <Card className="w-full max-w-md border-white/10 bg-slate-900/50 backdrop-blur-xl shadow-2xl relative overflow-hidden">
-        <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-500"></div>
+      <Card className="w-full max-w-md border-border/80 bg-card/90 backdrop-blur-xl shadow-2xl relative overflow-hidden">
+        <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-sky-500 via-primary to-accent"></div>
         <CardHeader className="space-y-2 pb-8 text-center">
-          <CardTitle className="text-3xl font-bold tracking-tight text-white bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-indigo-400">
+          <CardTitle className="text-3xl font-black tracking-tight text-foreground">
             Dò Số Dashboard
           </CardTitle>
-          <CardDescription className="text-slate-400">
+          <CardDescription className="text-muted-foreground font-medium">
             Đăng nhập để vào hệ thống quản lý
           </CardDescription>
         </CardHeader>
         <CardContent>
           <form action={handleSubmit} className="space-y-5">
             <div className="space-y-2">
-              <Label htmlFor="username" className="text-slate-300">Tên đăng nhập</Label>
+              <Label htmlFor="username">Tên đăng nhập</Label>
               <Input
                 id="username"
                 name="username"
                 type="text"
 
                 required
-                className="bg-slate-950/50 border-white/10 text-white placeholder:text-slate-600 focus:border-blue-500 focus:ring-blue-500 transition-all h-11"
+                className="h-11"
               />
             </div>
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <Label htmlFor="password" className="text-slate-300">Mật khẩu</Label>
+                <Label htmlFor="password">Mật khẩu</Label>
               </div>
               <Input
                 id="password"
                 name="password"
                 type="password"
                 required
-                className="bg-slate-950/50 border-white/10 text-white focus:border-blue-500 focus:ring-blue-500 transition-all h-11"
+                className="h-11"
               />
             </div>
             {error && (
@@ -72,7 +72,7 @@ export default function LoginPage() {
             <Button
               type="submit"
               disabled={loading}
-              className="w-full h-11 text-base font-semibold bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-lg shadow-blue-900/20 border-none transition-all"
+              className="w-full h-11 text-base btn-premium-primary"
             >
               {loading ? (
                 <span className="flex items-center gap-2">
@@ -85,10 +85,10 @@ export default function LoginPage() {
             </Button>
           </form>
 
-          <div className="mt-8 pt-6 border-t border-white/5 text-center">
-            <p className="text-sm text-slate-500">
+          <div className="mt-8 pt-6 border-t border-border text-center">
+            <p className="text-sm text-muted-foreground">
               Chưa có tài khoản?{" "}
-              <Link href="/register" className="text-blue-400 hover:text-blue-300 font-medium transition-colors">
+              <Link href="/register" className="text-primary hover:text-primary-light font-bold transition-colors">
                 Đăng kí ngay
               </Link>
             </p>
@@ -98,4 +98,3 @@ export default function LoginPage() {
     </div>
   );
 }
-

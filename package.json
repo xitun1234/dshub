@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "build": "prisma generate && next build",
+    "db:migrate:ownership": "prisma db execute --file prisma/migrations/20261005010000_add_customer_ownership/migration.sql --schema prisma/schema.prisma",
     "dev": "next dev",
     "start": "next start",
     "lint": "eslint",

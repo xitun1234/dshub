@@ -1,12 +1,13 @@
 "use client"
 
-import { useState, useTransition, useEffect } from "react"
+import { useState, useTransition } from "react"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Card, CardHeader, CardTitle } from "@/components/ui/card"
-import { parseTicketInput, ParseResult, ParserAliasesConfig } from "@/lib/parser"
+import { normalizeTicketInput, parseTicketInput } from "@/lib/parser"
+import type { ParseResult, ParserAliasesConfig } from "@/lib/parser"
 import { createTicket } from "../actions"
 import { useRouter, useSearchParams } from "next/navigation"
 import { fetchAndCheckResults } from "@/app/results/actions"
@@ -20,7 +21,13 @@ interface Customer {
   id: string
   name: string
   ratePay: number
+  ratePay3: number
+  ratePay4: number
   rateWin: number
+  rateWin3: number
+  rateWin4: number
+  rateWinDaMNMT: number
+  rateWinDaMB: number
   role: string
   [key: string]: unknown
 }
@@ -50,6 +57,17 @@ interface Bill {
   status: string
   [key: string]: unknown
 }
+
+interface RegionalSummary {
+  name: string
+  role: string
+  totalPoints: number
+  winPoints: number
+  totalInvestment: number
+  totalPrize: number
+}
+
+type RegionalSummaries = Record<string, Record<string, RegionalSummary>>
 
 const STATION_MAP: Record<string, { value: string, label: string }[]> = {
   MN: [
@@ -85,18 +103,18 @@ export function TicketForm({
   customer,
   initialRegion,
   bills,
-  allBills = [],
   customers,
   initialDate,
-  parserConfig
+  parserConfig,
+  regionalSummaries
 }: {
   customer: Customer
   initialRegion: "MN" | "MT" | "MB"
   bills: Bill[]
-  allBills?: Bill[]
   customers: Customer[]
   initialDate: string
   parserConfig: ParserAliasesConfig
+  regionalSummaries: RegionalSummaries
 }) {
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -137,6 +155,7 @@ export function TicketForm({
     setDayOfWeek(val)
     const newDate = getDateForDayOfWeek(dIdx)
     setDateStr(newDate)
+    loadDate(newDate)
   }
 
   const [isPending, startTransition] = useTransition()
@@ -152,9 +171,8 @@ export function TicketForm({
   const parseResult: ParseResult = parseTicketInput(rawInput, region, parserConfig)
 
   const capitalRate = customer?.ratePay || 0.72
-  const capitalRate3 = (customer as any)?.ratePay3 || 0.72
-  const capitalRate4 = (customer as any)?.ratePay4 || 0.72
-  const winRate = customer?.rateWin || 71
+  const capitalRate3 = customer?.ratePay3 || 0.72
+  const capitalRate4 = customer?.ratePay4 || 0.72
 
   const formatMoney = (val: number) => {
     const rounded = Math.round(val);
@@ -241,82 +259,24 @@ export function TicketForm({
     }
   });
 
-  // Aggregated summary for sticky note
-  const getRegionalSummaries = () => {
-    const summaries: Record<
-      string,
-      Record<
-        string,
-        {
-          name: string
-          role: string
-          totalPoints: number
-          winPoints: number
-          totalInvestment: number
-          totalPrize: number
-        }
-      >
-    > = {
-      MN: {},
-      MT: {},
-      MB: {}
-    }
-
-    allBills.forEach(b => {
-      const reg = b.region;
-      if (!summaries[reg]) summaries[reg] = {};
-      const cId = b.customerId;
-      
-      // Calculate total points for this bill
-      const billPts = b.details.reduce((acc, curr) => {
-        const typeNorm = curr.betType.toLowerCase().replace(/đ/g, "d");
-        const isDaOrXien = typeNorm === "da" || typeNorm.includes("xien") || typeNorm === "x" || typeNorm === "d" || typeNorm === "dx";
-        const numCount = curr.betNumber.split(/[-_,]+/).filter(Boolean).length;
-        const p = isDaOrXien
-          ? curr.pricePerUnit * 2 * (curr.stationCount || 1)
-          : curr.pricePerUnit * (curr.stationCount || 1) * numCount;
-        return acc + p;
-      }, 0);
-
-      // Calculate total points won for this bill
-      const billWinPts = b.details.filter(d => d.isWin).reduce((acc, curr) => {
-        return acc + (curr.pricePerUnit * curr.winQuantity);
-      }, 0);
-
-      if (!summaries[reg][cId]) {
-        summaries[reg][cId] = {
-          name: b.customer.name,
-          role: b.customer.role,
-          totalPoints: 0,
-          winPoints: 0,
-          totalInvestment: 0,
-          totalPrize: 0
-        };
-      }
-
-      summaries[reg][cId].totalPoints += billPts;
-      summaries[reg][cId].winPoints += billWinPts;
-      summaries[reg][cId].totalInvestment += b.totalInvestment || 0;
-      summaries[reg][cId].totalPrize += b.totalPrize || 0;
-    });
-
-    return summaries;
-  };
-
-  const regionalSummaries = getRegionalSummaries();
-
-  // Update URL internally when region or date changes so tabs inherit correctly
-  useEffect(() => {
+  const updateRegion = (nextRegion: "MN" | "MT" | "MB") => {
+    setRegion(nextRegion)
     const params = new URLSearchParams(searchParams.toString())
-    params.set('region', region)
-    params.set('date', dateStr)
+    params.set("region", nextRegion)
+    window.history.replaceState(null, "", `?${params.toString()}`)
+  }
+
+  const loadDate = (nextDate: string) => {
+    const params = new URLSearchParams(searchParams.toString())
+    params.set("region", region)
+    params.set("date", nextDate)
     router.replace(`?${params.toString()}`, { scroll: false })
-  }, [region, dateStr, router, searchParams])
+  }
 
   const onSubmit = (data: FormData) => {
     data.append("customerId", customer.id)
     data.append("region", region)
-    data.append("rawInput", rawInput)
+    data.append("rawInput", normalizeTicketInput(rawInput))
     data.append("date", dateStr)
 
     startTransition(async () => {
@@ -334,7 +294,7 @@ export function TicketForm({
   const onFetchAndCheck = async (targetRegion: "MN" | "MT" | "MB") => {
     setIsChecking(true)
     setRssMsg(null)
-    setRegion(targetRegion) // Sync the current active tab to the region being checked
+    updateRegion(targetRegion) // Sync the current active tab to the region being checked
 
     // Use the explicit dayOfWeek index from state
     const res = await fetchAndCheckResults(targetRegion, dateStr, parseInt(dayOfWeek))
@@ -361,7 +321,7 @@ export function TicketForm({
             <div className="flex flex-col gap-4">
               <div className="space-y-2">
                 <Label>Khách hàng / Thầu</Label>
-                <div className="flex h-10 w-full items-center rounded-md border border-border bg-card-bg/50 px-3 py-2 text-sm text-foreground/80 cursor-not-allowed">
+                <div className="flex h-10 w-full items-center rounded-xl border border-border bg-muted/70 px-3.5 py-2 text-sm font-medium text-foreground cursor-not-allowed">
                   {customer.name} (Xác: {customer.ratePay} - Trúng: {customer.rateWin})
                 </div>
               </div>
@@ -372,7 +332,7 @@ export function TicketForm({
                   type="button"
                   variant="outline"
                   className={`flex-1 transition-all h-11 font-bold ${region === "MN" ? "btn-segment-active" : "btn-segment"}`}
-                  onClick={() => setRegion("MN")}
+                  onClick={() => updateRegion("MN")}
                 >
                   Miền Nam
                 </Button>
@@ -380,7 +340,7 @@ export function TicketForm({
                   type="button"
                   variant="outline"
                   className={`flex-1 transition-all h-11 font-bold ${region === "MT" ? "btn-segment-active" : "btn-segment"}`}
-                  onClick={() => setRegion("MT")}
+                  onClick={() => updateRegion("MT")}
                 >
                   Miền Trung
                 </Button>
@@ -388,7 +348,7 @@ export function TicketForm({
                   type="button"
                   variant="outline"
                   className={`flex-1 transition-all h-11 font-bold ${region === "MB" ? "btn-segment-active" : "btn-segment"}`}
-                  onClick={() => setRegion("MB")}
+                  onClick={() => updateRegion("MB")}
                 >
                   Miền Bắc
                 </Button>
@@ -429,6 +389,7 @@ export function TicketForm({
                 className="font-mono text-base bg-foreground/5 text-foreground border-border/50 resize-y focus-visible:ring-primary"
                 value={rawInput}
                 onChange={(e) => setRawInput(e.target.value)}
+                onBlur={() => setRawInput(current => normalizeTicketInput(current))}
               />
             </div>
           </div>
@@ -440,8 +401,8 @@ export function TicketForm({
               </CardHeader>
 
               <div className="p-6 space-y-6 overflow-y-auto flex-1 min-h-0">
-                <div className="space-y-2 text-sm text-foreground/60 font-mono">
-                  {!rawInput && <div className="text-foreground/50 italic">Bắt đầu gõ để xem kết quả phân tích...</div>}
+                <div className="space-y-2 text-sm text-muted-foreground font-mono">
+                  {!rawInput && <div className="text-muted-foreground italic">Bắt đầu gõ để xem kết quả phân tích...</div>}
                   {parseResult.bets.map((bet, i) => (
                     <div key={i} className="flex justify-between border-b border-border/50 border-dashed pb-2">
                       <span>
@@ -460,7 +421,7 @@ export function TicketForm({
 
               <div className="p-6 pt-4 border-t border-border space-y-3 bg-card-bg flex-none rounded-b-xl">
                 {Object.keys(betCategories).length > 0 && (
-                  <div className="flex flex-wrap gap-x-4 gap-y-1.5 text-sm text-foreground/50 border-b border-border/20 pb-3 mb-2 font-semibold">
+                  <div className="flex flex-wrap gap-x-4 gap-y-1.5 text-sm text-muted-foreground border-b border-border pb-3 mb-2 font-semibold">
                     {Object.entries(betCategories).map(([name, pts]) => (
                       <span key={name}>
                         {name}: <strong className="text-primary font-bold">{formatPoints(pts)}n</strong>
@@ -469,11 +430,11 @@ export function TicketForm({
                   </div>
                 )}
                 <div className="flex justify-between items-center text-lg">
-                  <span className="text-foreground/60">Tổng tiền</span>
+                  <span className="text-muted-foreground">Tổng tiền</span>
                   <span className="font-bold text-primary">{formatPoints(parseResult.totalPoints)}</span>
                 </div>
                 <div className="flex justify-between items-center text-xl">
-                  <span className="text-foreground/60">Tiền Xác:</span>
+                  <span className="text-muted-foreground">Tiền Xác:</span>
                   <span className="font-bold text-rose-500">-{formatMoney(totalCapitalK)}k</span>
                 </div>
               </div>
@@ -544,7 +505,7 @@ export function TicketForm({
                 type="button"
                 variant="ghost"
                 size="icon"
-                className="w-7 h-7 hover:bg-foreground/10 text-foreground/60 rounded-lg shrink-0"
+                className="w-7 h-7 hover:bg-muted text-muted-foreground rounded-lg shrink-0"
                 onClick={() => setStickyCollapsed(true)}
               >
                 <Minimize2 className="w-4 h-4" />
@@ -592,9 +553,9 @@ export function TicketForm({
                         {config.name}
                       </span>
                       {isCollapsed ? (
-                        <ChevronRight className="w-3.5 h-3.5 text-foreground/40" />
+                        <ChevronRight className="w-3.5 h-3.5 text-muted-foreground" />
                       ) : (
-                        <ChevronDown className="w-3.5 h-3.5 text-foreground/40" />
+                        <ChevronDown className="w-3.5 h-3.5 text-muted-foreground" />
                       )}
                     </h4>
                     {!isCollapsed && (
@@ -604,16 +565,21 @@ export function TicketForm({
                           const netProfit = c.totalInvestment - c.totalPrize;
                           const word = isThau ? (netProfit >= 0 ? 'Bù' : 'Thu') : (netProfit >= 0 ? 'Thu' : 'Bù');
                           const moneyDiff = Math.abs(netProfit);
+                          const settlementClass = netProfit > 0
+                            ? "text-emerald-500"
+                            : netProfit < 0 ? "text-rose-500" : "text-muted-foreground";
 
                           return (
                             <div key={idx} className="flex flex-col border-b border-foreground/5 py-1.5 last:border-0">
                               <span className="font-bold text-foreground/90 text-[13px]">{c.name}</span>
-                              <span className="text-foreground/60 mt-0.5">
+                              <span className="text-muted-foreground mt-0.5">
                                 Tổng <strong className="text-primary">{c.totalPoints}n</strong>
                                 {" "}|{" "}
-                                Trúng <strong className={c.winPoints > 0 ? "text-rose-500 font-bold" : "text-foreground/40"}>{c.winPoints}n</strong>
+                                Trúng <strong className={c.winPoints > 0 ? "text-rose-500 font-bold" : "text-muted-foreground"}>{c.winPoints}n</strong>
                                 {" "}|{" "}
-                                {word} <strong className="text-primary dark:text-primary-light font-extrabold">{formatMoney(moneyDiff)}k</strong>
+                                <span className={`font-bold ${settlementClass}`}>
+                                  {word} <strong className="font-extrabold">{formatMoney(moneyDiff)}k</strong>
+                                </span>
                               </span>
                             </div>
                           );
@@ -624,7 +590,7 @@ export function TicketForm({
                 );
               })}
               {Object.values(regionalSummaries).every(m => Object.values(m).filter(c => c.totalPoints > 0).length === 0) && (
-                <div className="text-center text-foreground/30 italic py-6 text-xs">
+                <div className="text-center text-muted-foreground italic py-6 text-xs">
                   Chưa có phơi số nào trong ngày này.
                 </div>
               )}

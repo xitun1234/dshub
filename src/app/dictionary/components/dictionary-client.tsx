@@ -185,7 +185,7 @@ export function DictionaryClient({ initialStations }: { initialStations: Station
                 className={`px-5 py-2.5 rounded-xl font-bold whitespace-nowrap transition-all text-sm flex items-center gap-2 ${
                   isActive 
                   ? "bg-primary text-white shadow-md shadow-primary/20" 
-                  : "bg-white/5 hover:bg-white/10 text-foreground/70"
+                  : "bg-card/70 hover:bg-primary-surface text-muted-foreground hover:text-foreground border border-border"
                 }`}
               >
                 {tab === "CHUNG" ? <Hash className="w-4 h-4" /> : <MapPin className="w-4 h-4" />}
@@ -197,7 +197,7 @@ export function DictionaryClient({ initialStations }: { initialStations: Station
 
         {/* Search input */}
         <div className="relative max-w-sm w-full">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-foreground/40" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input 
             placeholder="Tìm kiếm đài hoặc viết tắt..."
             value={search}
@@ -209,7 +209,7 @@ export function DictionaryClient({ initialStations }: { initialStations: Station
 
       {/* Grid of station cards */}
       {filteredStations.length === 0 ? (
-        <div className="py-16 text-center text-foreground/40 border border-border border-dashed rounded-2xl bg-card-bg/30">
+        <div className="py-16 text-center text-muted-foreground border border-border border-dashed rounded-2xl bg-card/60">
           Không tìm thấy nhà đài nào phù hợp.
         </div>
       ) : (
@@ -225,7 +225,7 @@ export function DictionaryClient({ initialStations }: { initialStations: Station
             return (
               <Card 
                 key={id} 
-                className={`bg-card-bg border-border/40 shadow-lg transition-all border-none relative overflow-hidden hvr-lift ${
+                className={`bg-card border-border shadow-lg transition-all relative overflow-hidden hvr-lift ${
                   isSuccess ? 'ring-2 ring-emerald-500/30' : ''
                 } ${isError ? 'ring-2 ring-rose-500/30' : ''}`}
               >

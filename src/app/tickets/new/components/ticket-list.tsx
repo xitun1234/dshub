@@ -14,10 +14,10 @@ type Bill = {
   customer: {
     name: string
     rateWin: number
-    rateWin3?: number
-    rateWin4?: number
-    rateWinDaMNMT?: number
-    rateWinDaMB?: number
+    rateWin3: number
+    rateWin4: number
+    rateWinDaMNMT: number
+    rateWinDaMB: number
   }
   details: {
     id: string
@@ -174,11 +174,11 @@ export function TicketList({
                     <button
                       className={`px-3 py-1.5 rounded-xl transition-all font-bold whitespace-nowrap border text-xs ${isActive
                         ? "bg-gradient-to-br from-primary to-accent text-white border-primary-glow shadow-[0_8px_20px_var(--primary-glow)] scale-105 z-10"
-                        : "bg-white/5 text-foreground/80 border-white/10 hover:text-primary hover:bg-primary/10 hover:border-primary/30"
+                        : "bg-card/70 text-muted-foreground border-border hover:text-primary hover:bg-primary-surface hover:border-primary-border"
                         }`}
                     >
                       {c.name}
-                      <small className={`block text-[9px] mt-0.5 font-black tracking-wider uppercase ${isActive ? "text-white/80" : "text-foreground/40"}`}>
+                      <small className={`block text-[9px] mt-0.5 font-black tracking-wider uppercase ${isActive ? "text-white/80" : "text-muted-foreground"}`}>
                         Xác: {c.ratePay || '0.72'} - Ăn: {c.rateWin || '71'}
                       </small>
                     </button>
@@ -203,14 +203,14 @@ export function TicketList({
                 onClick={() => toggleRegion(r.id)}
               >
                 <div className="flex items-center gap-3">
-                  <div className="text-foreground/30 transition-transform group-hover:scale-110">
+                  <div className="text-muted-foreground transition-transform group-hover:scale-110">
                     {isExpanded ? <ChevronUp className="h-5 w-5" /> : <ChevronDown className="h-5 w-5" />}
                   </div>
                   <div className={`h-6 w-1.5 rounded-full ${billCount > 0 ? 'bg-primary' : 'bg-foreground/10'}`}></div>
-                  <h3 className={`text-xl font-extrabold ${billCount > 0 ? 'text-foreground' : 'text-foreground/40'}`}>
+                  <h3 className={`text-xl font-extrabold ${billCount > 0 ? 'text-foreground' : 'text-muted-foreground'}`}>
                     Phơi {r.name}
                   </h3>
-                  <Badge variant="outline" className={`${billCount > 0 ? 'text-primary/70 border-primary/20 bg-primary/5' : 'text-foreground/40 border-border/40'} font-black px-2`}>
+                  <Badge variant="outline" className={`${billCount > 0 ? 'text-primary border-primary-border bg-primary-surface' : 'text-muted-foreground border-border'} font-black px-2`}>
                     {billCount} phơi
                   </Badge>
                 </div>
@@ -244,9 +244,104 @@ export function TicketList({
                   {billCount > 0 ? (
                     <>
                       <Card className="bg-card-bg border-border shadow-sm border-none overflow-hidden">
-                        <div className="rounded-md border border-border overflow-x-auto pb-2">
+                        {/* Mobile View */}
+                        <div className="md:hidden space-y-4">
+                          {regionBills.map((bill, index) => {
+                            const pts = bill.details.reduce((acc, curr) => {
+                              const typeNorm = curr.betType.toLowerCase().replace(/đ/g, "d");
+                              const isDaOrXien = typeNorm === "da" || typeNorm.includes("xien") || typeNorm === "x" || typeNorm === "d" || typeNorm === "dx";
+                              const numCount = curr.betNumber.split(/[-_,]+/).filter(Boolean).length;
+                              const p = isDaOrXien
+                                ? curr.pricePerUnit * 2 * (curr.stationCount || 1)
+                                : curr.pricePerUnit * (curr.stationCount || 1) * numCount;
+                              return acc + p;
+                            }, 0);
+
+                            const money = bill.details.reduce((acc, curr) => {
+                              const typeNorm = curr.betType.toLowerCase().replace(/đ/g, "d");
+                              const isDaOrXien = typeNorm === "da" || typeNorm.includes("xien") || typeNorm === "x" || typeNorm === "d" || typeNorm === "dx";
+                              const numCount = curr.betNumber.split(/[-_,]+/).filter(Boolean).length;
+                              const p = isDaOrXien
+                                ? curr.pricePerUnit * 2 * (curr.stationCount || 1) * curr.multiplier
+                                : curr.pricePerUnit * (curr.stationCount || 1) * numCount * curr.multiplier;
+                              return acc + p;
+                            }, 0);
+
+                            return (
+                              <div key={bill.id} className="bg-background/40 border border-border/50 p-4 rounded-xl space-y-4 shadow-sm">
+                                <div className="flex justify-between items-start">
+                                  <div className="flex items-center gap-2">
+                                    <span className="bg-primary/10 text-primary font-black text-xs px-2 py-1 rounded-md">#{index + 1}</span>
+                                    <span className="font-bold text-foreground">{bill.customer.name}</span>
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      className="h-8 w-8 text-muted-foreground hover:text-blue-500 bg-muted"
+                                      onClick={() => onEdit(bill.rawContent)}
+                                      disabled={isPending}
+                                    >
+                                      <Edit className="h-4 w-4" />
+                                    </Button>
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      className="h-8 w-8 text-muted-foreground hover:text-rose-500 bg-muted"
+                                      onClick={() => handleDelete(bill.id)}
+                                      disabled={isPending}
+                                    >
+                                      <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                  </div>
+                                </div>
+
+                                <div className="relative">
+                                  <div className="absolute top-0 left-0 bg-primary/10 text-primary text-[10px] font-black px-2 py-1 rounded-tl-lg rounded-br-lg uppercase tracking-wider z-10 border-r border-b border-primary/20">PHƠI GỐC</div>
+                                  <div className="bg-foreground/5 rounded-lg p-3 pt-7 max-h-[250px] overflow-auto border border-border/50">
+                                    <code className="phoi-code-block cursor-text select-all text-sm font-bold tracking-wide text-foreground whitespace-pre block min-w-max leading-relaxed">
+                                      {bill.rawContent}
+                                    </code>
+                                  </div>
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-3 text-sm">
+                                  <div className="bg-background/50 rounded-lg p-3 border border-border/30">
+                                    <div className="text-muted-foreground text-xs mb-1 font-medium">Tổng điểm</div>
+                                    <div className="font-mono font-bold text-primary">{formatMoney(pts)}n</div>
+                                  </div>
+                                  <div className="bg-background/50 rounded-lg p-3 border border-border/30">
+                                    <div className="text-muted-foreground text-xs mb-1 font-medium">Tổng tiền</div>
+                                    <div className="font-mono font-bold text-foreground">{formatMoney(money)}k</div>
+                                  </div>
+                                  <div className="bg-rose-500/5 rounded-lg p-3 border border-rose-500/20">
+                                    <div className="text-rose-500/60 text-xs mb-1 font-medium">Tiền xác</div>
+                                    <div className="font-bold text-rose-500">{formatMoney(bill.totalInvestment)}k</div>
+                                  </div>
+                                  <div className="bg-sky-500/5 rounded-lg p-3 border border-sky-500/20 flex flex-col justify-center">
+                                    <div className="text-sky-500/60 text-xs mb-1 font-medium">Trúng</div>
+                                    <div className="font-bold">
+                                      {bill.status === 'processed' ? (
+                                        bill.totalPrize > 0 ? (
+                                          <span className="text-sky-500">+{formatMoney(bill.totalPrize)}k</span>
+                                        ) : (
+                                          <span className="text-muted-foreground italic">Trượt</span>
+                                        )
+                                      ) : (
+                                        <Badge variant="outline" className="text-amber-500/80 border-amber-500/30 text-[10px] px-1 py-0 h-5">Chờ kết quả</Badge>
+                                      )}
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+
+                        {/* Desktop View */}
+                        <div className="hidden md:block rounded-md border border-border overflow-x-auto pb-2">
                           <table className="w-full text-sm text-left min-w-[700px]">
-                            <thead className="bg-foreground/5 text-foreground/60 font-medium border-b border-border">
+                            <thead className="bg-muted/70 text-muted-foreground font-semibold border-b border-border">
                               <tr>
                                 <th className="px-4 py-3 text-center w-12">#</th>
                                 <th className="px-4 py-3">Khách hàng</th>
@@ -259,81 +354,83 @@ export function TicketList({
                               </tr>
                             </thead>
                             <tbody className="divide-y divide-border/40">
-                              {regionBills.map((bill, index) => (
-                                <tr key={bill.id} className="hover:bg-primary/5 transition-colors border-b border-border/50">
-                                  <td className="px-4 py-3 text-center text-foreground/40">{index + 1}</td>
-                                  <td className="px-4 py-3 font-medium text-foreground">{bill.customer.name}</td>
-                                  <td className="px-4 py-3">
-                                    <code className="phoi-code-block cursor-text select-all text-sm font-bold tracking-wide bg-foreground/5 px-2 py-1.5 rounded text-foreground whitespace-pre-wrap break-words block w-full leading-relaxed">
-                                      {bill.rawContent}
-                                    </code>
-                                  </td>
-                                  <td className="px-4 py-3 text-right font-mono text-primary font-bold">
-                                    {(() => {
-                                      const pts = bill.details.reduce((acc, curr) => {
-                                        const typeNorm = curr.betType.toLowerCase().replace(/đ/g, "d");
-                                        const isDaOrXien = typeNorm === "da" || typeNorm.includes("xien") || typeNorm === "x" || typeNorm === "d" || typeNorm === "dx";
-                                        const numCount = curr.betNumber.split(/[-_,]+/).filter(Boolean).length;
-                                        const p = isDaOrXien
-                                          ? curr.pricePerUnit * 2 * (curr.stationCount || 1)
-                                          : curr.pricePerUnit * (curr.stationCount || 1) * numCount;
-                                        return acc + p;
-                                      }, 0);
-                                      return `${formatMoney(pts)}n`;
-                                    })()}
-                                  </td>
-                                  <td className="px-4 py-3 text-right font-mono text-foreground font-medium">
-                                    {(() => {
-                                      const money = bill.details.reduce((acc, curr) => {
-                                        const typeNorm = curr.betType.toLowerCase().replace(/đ/g, "d");
-                                        const isDaOrXien = typeNorm === "da" || typeNorm.includes("xien") || typeNorm === "x" || typeNorm === "d" || typeNorm === "dx";
-                                        const numCount = curr.betNumber.split(/[-_,]+/).filter(Boolean).length;
-                                        const p = isDaOrXien
-                                          ? curr.pricePerUnit * 2 * (curr.stationCount || 1) * curr.multiplier
-                                          : curr.pricePerUnit * (curr.stationCount || 1) * numCount * curr.multiplier;
-                                        return acc + p;
-                                      }, 0);
-                                      return `${formatMoney(money)}k`;
-                                    })()}
-                                  </td>
-                                  <td className="px-4 py-3 text-right font-bold text-rose-500">
-                                    {formatMoney(bill.totalInvestment)}k
-                                  </td>
-                                  <td className="px-4 py-3 text-right">
-                                    {bill.status === 'processed' ? (
-                                      bill.totalPrize > 0 ? (
-                                        <span className="font-bold text-sky-400">+{formatMoney(bill.totalPrize)}k</span>
+                              {regionBills.map((bill, index) => {
+                                const pts = bill.details.reduce((acc, curr) => {
+                                  const typeNorm = curr.betType.toLowerCase().replace(/đ/g, "d");
+                                  const isDaOrXien = typeNorm === "da" || typeNorm.includes("xien") || typeNorm === "x" || typeNorm === "d" || typeNorm === "dx";
+                                  const numCount = curr.betNumber.split(/[-_,]+/).filter(Boolean).length;
+                                  const p = isDaOrXien
+                                    ? curr.pricePerUnit * 2 * (curr.stationCount || 1)
+                                    : curr.pricePerUnit * (curr.stationCount || 1) * numCount;
+                                  return acc + p;
+                                }, 0);
+
+                                const money = bill.details.reduce((acc, curr) => {
+                                  const typeNorm = curr.betType.toLowerCase().replace(/đ/g, "d");
+                                  const isDaOrXien = typeNorm === "da" || typeNorm.includes("xien") || typeNorm === "x" || typeNorm === "d" || typeNorm === "dx";
+                                  const numCount = curr.betNumber.split(/[-_,]+/).filter(Boolean).length;
+                                  const p = isDaOrXien
+                                    ? curr.pricePerUnit * 2 * (curr.stationCount || 1) * curr.multiplier
+                                    : curr.pricePerUnit * (curr.stationCount || 1) * numCount * curr.multiplier;
+                                  return acc + p;
+                                }, 0);
+
+                                return (
+                                  <tr key={bill.id} className="hover:bg-primary/5 transition-colors border-b border-border/50">
+                                    <td className="px-4 py-3 text-center text-muted-foreground">{index + 1}</td>
+                                    <td className="px-4 py-3 font-medium text-foreground">{bill.customer.name}</td>
+                                    <td className="px-4 py-3">
+                                      <div className="max-h-[200px] overflow-auto">
+                                        <code className="phoi-code-block cursor-text select-all text-sm font-bold tracking-wide bg-foreground/5 px-2 py-1.5 rounded text-foreground whitespace-pre block min-w-max leading-relaxed">
+                                          {bill.rawContent}
+                                        </code>
+                                      </div>
+                                    </td>
+                                    <td className="px-4 py-3 text-right font-mono text-primary font-bold">
+                                      {formatMoney(pts)}n
+                                    </td>
+                                    <td className="px-4 py-3 text-right font-mono text-foreground font-medium">
+                                      {formatMoney(money)}k
+                                    </td>
+                                    <td className="px-4 py-3 text-right font-bold text-rose-500">
+                                      {formatMoney(bill.totalInvestment)}k
+                                    </td>
+                                    <td className="px-4 py-3 text-right">
+                                      {bill.status === 'processed' ? (
+                                        bill.totalPrize > 0 ? (
+                                          <span className="font-bold text-sky-400">+{formatMoney(bill.totalPrize)}k</span>
+                                        ) : (
+                                          <span className="text-muted-foreground font-medium italic">Trượt</span>
+                                        )
                                       ) : (
-                                        <span className="text-foreground/40 font-medium italic">Trượt</span>
-                                      )
-                                    ) : (
-                                      <Badge variant="outline" className="text-amber-500/80 border-amber-500/30">Chờ kết quả</Badge>
-                                    )}
-                                  </td>
-                                  <td className="px-4 py-3 text-right">
-                                    <div className="flex justify-end gap-2">
-                                      <Button
-                                        variant="ghost"
-                                        size="icon"
-                                        className="h-8 w-8 text-neutral-500 dark:text-neutral-400 hover:text-blue-500 hover:bg-blue-500/10"
-                                        onClick={() => onEdit(bill.rawContent)}
-                                        disabled={isPending}
-                                      >
-                                        <Edit className="h-4 w-4" />
-                                      </Button>
-                                      <Button
-                                        variant="ghost"
-                                        size="icon"
-                                        className="h-8 w-8 text-neutral-500 dark:text-neutral-400 hover:text-rose-500 hover:bg-rose-500/10"
-                                        onClick={() => handleDelete(bill.id)}
-                                        disabled={isPending}
-                                      >
-                                        <Trash2 className="h-4 w-4" />
-                                      </Button>
-                                    </div>
-                                  </td>
-                                </tr>
-                              ))}
+                                        <Badge variant="outline" className="text-amber-500/80 border-amber-500/30">Chờ kết quả</Badge>
+                                      )}
+                                    </td>
+                                    <td className="px-4 py-3 text-right">
+                                      <div className="flex justify-end gap-2">
+                                        <Button
+                                          variant="ghost"
+                                          size="icon"
+                                          className="h-8 w-8 text-muted-foreground hover:text-blue-500 hover:bg-blue-500/10"
+                                          onClick={() => onEdit(bill.rawContent)}
+                                          disabled={isPending}
+                                        >
+                                          <Edit className="h-4 w-4" />
+                                        </Button>
+                                        <Button
+                                          variant="ghost"
+                                          size="icon"
+                                          className="h-8 w-8 text-muted-foreground hover:text-rose-500 hover:bg-rose-500/10"
+                                          onClick={() => handleDelete(bill.id)}
+                                          disabled={isPending}
+                                        >
+                                          <Trash2 className="h-4 w-4" />
+                                        </Button>
+                                      </div>
+                                    </td>
+                                  </tr>
+                                );
+                              })}
                             </tbody>
                           </table>
                         </div>
@@ -364,25 +461,25 @@ export function TicketList({
                             </Card>
 
                             <Card className={`relative overflow-hidden min-h-[100px] flex flex-col justify-center backdrop-blur-md border-2 transition-all ${rProfit > 0
-                              ? 'bg-primary/15 border-primary/30 shadow-[0_0_20px_var(--primary-glow)] hover:bg-primary/20'
+                              ? 'bg-emerald-500/12 border-emerald-500/30 shadow-[0_0_20px_rgba(16,185,129,0.12)] hover:bg-emerald-500/18'
                               : rProfit < 0
                                 ? 'bg-rose-500/15 border-rose-500/30 shadow-[0_0_20px_rgba(244,63,94,0.1)] hover:bg-rose-500/20'
                                 : 'bg-card-bg/40 border-border/40'
                               }`}>
                               <CardContent className="p-5 flex flex-col items-center relative z-10">
-                                <p className={`text-xs uppercase tracking-widest mb-2 font-black ${rProfit > 0 ? 'text-primary/60' : rProfit < 0 ? 'text-rose-500/60' : 'text-neutral-500'
+                                <p className={`text-xs uppercase tracking-widest mb-2 font-black ${rProfit > 0 ? 'text-emerald-500' : rProfit < 0 ? 'text-rose-500' : 'text-muted-foreground'
                                   }`}>
                                   {activeCustomerRole === "THAU"
                                     ? (rProfit >= 0 ? "BÙ" : "THU")
                                     : (rProfit >= 0 ? "THU" : "BÙ")} {r.name}
                                 </p>
-                                <p className={`text-3xl font-black drop-shadow-lg ${rProfit > 0 ? 'text-primary' : rProfit < 0 ? 'text-rose-500' : 'text-neutral-500 dark:text-neutral-300'
+                                <p className={`text-3xl font-black ${rProfit > 0 ? 'text-emerald-500' : rProfit < 0 ? 'text-rose-500' : 'text-muted-foreground'
                                   }`}>
                                   {formatMoney(Math.abs(rProfit))}k
                                 </p>
                               </CardContent>
                               {rProfit !== 0 && (
-                                <div className={`absolute -right-4 -bottom-4 w-24 h-24 rounded-full blur-3xl opacity-20 ${rProfit > 0 ? 'bg-primary' : 'bg-rose-500'
+                                <div className={`absolute -right-4 -bottom-4 w-24 h-24 rounded-full blur-3xl opacity-20 ${rProfit > 0 ? 'bg-emerald-500' : 'bg-rose-500'
                                   }`} />
                               )}
                             </Card>
@@ -394,7 +491,7 @@ export function TicketList({
                       <WinnersList bills={regionBills} formatMoney={formatMoney} formatPoints={formatPoints} regionName={r.name} />
                     </>
                   ) : (
-                    <div className="p-12 text-center text-foreground/40 border-2 border-dashed border-border/20 rounded-2xl italic font-medium">
+                    <div className="p-12 text-center text-muted-foreground border-2 border-dashed border-border rounded-2xl italic font-medium bg-card/40">
                       Chưa có phơi nào được nhập for {r.name}
                     </div>
                   )}
@@ -412,7 +509,7 @@ export function TicketList({
         })}
 
         {bills.length === 0 && (
-          <div className="pt-12 text-center text-foreground/40 font-bold italic">
+          <div className="pt-12 text-center text-muted-foreground font-bold italic">
             Danh sách phơi hôm nay trống.
           </div>
         )}
@@ -423,7 +520,7 @@ export function TicketList({
         <AlertDialogContent className="bg-card-bg border-border text-foreground">
           <AlertDialogHeader>
             <AlertDialogTitle className="text-xl">Xác nhận xoá phơi</AlertDialogTitle>
-            <AlertDialogDescription className="text-foreground/60">
+            <AlertDialogDescription className="text-muted-foreground">
               Bạn có chắc chắn muốn xoá phơi này? Hành động này không thể hoàn tác và dữ liệu sẽ mất vĩnh viễn khỏi hệ thống.
             </AlertDialogDescription>
           </AlertDialogHeader>
@@ -450,6 +547,18 @@ function WinnersList({ bills, formatMoney, formatPoints, regionName }: { bills: 
 
   if (winningBills.length === 0) return null
 
+  const parseWinStations = (value: string | null | undefined): string[] => {
+    if (!value) return []
+    try {
+      const parsed: unknown = JSON.parse(value)
+      return Array.isArray(parsed)
+        ? parsed.filter((station): station is string => typeof station === "string")
+        : typeof parsed === "string" ? [parsed] : []
+    } catch {
+      return []
+    }
+  }
+
   const winningDetails = winningBills.flatMap(bill =>
     bill.details.filter(d => d.isWin).map(d => {
       const typeNorm = d.betType.toLowerCase().replace(/đ/g, "d");
@@ -467,13 +576,13 @@ function WinnersList({ bills, formatMoney, formatPoints, regionName }: { bills: 
 
       let winRateApplied = bill.customer.rateWin;
       if (is4D) {
-        winRateApplied = (bill.customer as any).rateWin4 ?? 5500;
+        winRateApplied = bill.customer.rateWin4;
       } else if (is3D) {
-        winRateApplied = (bill.customer as any).rateWin3 ?? 650;
+        winRateApplied = bill.customer.rateWin3;
       } else if (isDa) {
         winRateApplied = bill.region === "MB"
-          ? ((bill.customer as any).rateWinDaMB ?? 650)
-          : ((bill.customer as any).rateWinDaMNMT ?? 650);
+          ? bill.customer.rateWinDaMB
+          : bill.customer.rateWinDaMNMT;
       }
 
       const prize = d.winQuantity * d.pricePerUnit * winRateApplied;
@@ -487,7 +596,7 @@ function WinnersList({ bills, formatMoney, formatPoints, regionName }: { bills: 
         prize: prize,
         pricePerUnit: d.pricePerUnit,
         rawContent: bill.rawContent,
-        winStations: d.winStations ? JSON.parse(d.winStations) : []
+        winStations: parseWinStations(d.winStations)
       }
     })
   )
@@ -605,7 +714,54 @@ function WinnersList({ bills, formatMoney, formatPoints, regionName }: { bills: 
       </div>
 
       <div className="overflow-hidden rounded-xl border border-primary/20 bg-primary/5 backdrop-blur-sm">
-        <div className="overflow-x-auto scrollbar-hide">
+        {/* Mobile View */}
+        <div className="md:hidden space-y-3 p-3">
+          {winningDetails.map((detail, idx) => (
+            <div key={idx} className="bg-background/60 rounded-xl p-4 border border-primary/10 space-y-3 shadow-sm">
+              <div className="flex justify-between items-start">
+                <div className="flex flex-col">
+                  <span className="text-2xl font-black text-primary">{detail.betNumber}</span>
+                  <span className={`text-[10px] font-bold uppercase tracking-wider ${["bao","blo","lo","b","7lo","7l","da","xien","x","d","dx","xc","xiuchu"].includes(detail.betType.toLowerCase().replace(/đ/g, "d")) ? "text-rose-500" : "text-muted-foreground"}`}>{detail.betType.toLowerCase() === "b" ? "bao" : detail.betType}</span>
+                </div>
+                <div className="text-right">
+                  <span className="text-xl font-black text-primary drop-shadow-[0_2px_8px_var(--primary-glow)]">
+                    {formatMoney(detail.prize)}k
+                  </span>
+                  <div className="text-[10px] text-primary/60 font-black mt-0.5 tracking-widest uppercase">Tiền trúng</div>
+                </div>
+              </div>
+
+              <div className="flex flex-wrap gap-1.5">
+                {(Array.isArray(detail.winStations) ? detail.winStations : [detail.winStations]).map((station, sIdx) => (
+                  <span key={sIdx} className="font-semibold text-foreground/70 bg-foreground/10 rounded px-2 py-0.5 border border-border italic text-xs">
+                    {station}
+                  </span>
+                ))}
+              </div>
+
+              <div className="flex justify-between items-center bg-foreground/5 p-2.5 rounded-lg text-sm mt-1">
+                <div className="flex items-center gap-1.5">
+                  <span className="text-muted-foreground font-medium text-xs">Nháy:</span>
+                  <span className="font-black text-foreground">{detail.winQuantity}</span>
+                </div>
+                <div className="flex items-center gap-1.5 font-mono">
+                  <span className="text-muted-foreground font-medium text-xs">Điểm:</span>
+                  {detail.winQuantity > 1 ? (
+                    <span className="font-bold text-foreground">
+                      {formatPoints(detail.pricePerUnit * detail.winQuantity)}n
+                      <span className="text-[10px] text-muted-foreground font-normal ml-1">({formatPoints(detail.pricePerUnit)}n x {detail.winQuantity})</span>
+                    </span>
+                  ) : (
+                    <span className="font-bold text-foreground">{formatPoints(detail.pricePerUnit * detail.winQuantity)}n</span>
+                  )}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Desktop View */}
+        <div className="hidden md:block overflow-x-auto scrollbar-hide">
           <table className="w-full text-sm text-left min-w-[650px]">
             <thead>
               <tr className="bg-primary/10 text-primary font-black border-b border-primary/20">
@@ -633,14 +789,14 @@ function WinnersList({ bills, formatMoney, formatPoints, regionName }: { bills: 
                       <span className="text-xl font-black text-primary group-hover:scale-110 transition-transform origin-left w-fit">
                         {detail.betNumber}
                       </span>
-                      <span className={`text-[10px] font-bold uppercase tracking-wider ${["bao","blo","lo","b","7lo","7l","da","xien","x","d","dx","xc","xiuchu"].includes(detail.betType.toLowerCase().replace(/đ/g, "d")) ? "text-rose-500" : "text-foreground/40"}`}>{detail.betType.toLowerCase() === "b" ? "bao" : detail.betType}</span>
+                      <span className={`text-[10px] font-bold uppercase tracking-wider ${["bao","blo","lo","b","7lo","7l","da","xien","x","d","dx","xc","xiuchu"].includes(detail.betType.toLowerCase().replace(/đ/g, "d")) ? "text-rose-500" : "text-muted-foreground"}`}>{detail.betType.toLowerCase() === "b" ? "bao" : detail.betType}</span>
                     </div>
                   </td>
                   <td className="px-6 py-4 text-center font-black">{detail.winQuantity}</td>
-                  <td className="px-6 py-4 text-right font-mono text-slate-900 dark:text-white whitespace-nowrap">
+                  <td className="px-6 py-4 text-right font-mono text-foreground whitespace-nowrap">
                     {detail.winQuantity > 1 ? (
                       <>
-                        <span className="text-foreground/60 font-semibold">{formatPoints(detail.pricePerUnit)}n x {detail.winQuantity}</span>
+                        <span className="text-muted-foreground font-semibold">{formatPoints(detail.pricePerUnit)}n x {detail.winQuantity}</span>
                         <span className="font-bold"> = {formatPoints(detail.pricePerUnit * detail.winQuantity)}n</span>
                       </>
                     ) : (

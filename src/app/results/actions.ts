@@ -1,8 +1,11 @@
 "use server"
 
+import type { Prisma } from "@prisma/client"
+import { revalidatePath, updateTag } from "next/cache"
+import { getBillsCacheTag } from "@/lib/bills"
+import { requireUser } from "@/lib/auth"
 import prisma from "@/lib/prisma"
 import { fetchLotteryRSS } from "@/lib/rss"
-import { revalidatePath } from "next/cache"
 import { getDynamicAliasMap } from "@/lib/stations"
 
 function getWinningNumbersForBet(
@@ -73,20 +76,24 @@ function getWinningNumbersForBet(
 
 export async function fetchAndCheckResults(region: "MN" | "MT" | "MB", dateStr: string, dayIndex: number) {
   try {
+    const user = await requireUser()
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(dateStr) || !Number.isInteger(dayIndex) || dayIndex < 0 || dayIndex > 6) {
+      return { success: false, error: "Ngày dò kết quả không hợp lệ." }
+    }
+
     const dynamicAliasMap = await getDynamicAliasMap()
     // 1. Kéo RSS xskt - Pass dateStr for precise filtering
     const rssData = await fetchLotteryRSS(region, dayIndex, dateStr)
     
-    // 2. Lưu/Cập nhật KQXS vào Database 
-    for (const station of Object.keys(rssData.results)) {
-      await prisma.lotteryResult.upsert({
+    // 2. Lưu/Cập nhật KQXS vào Database
+    await Promise.all(Object.keys(rssData.results).map(station =>
+      prisma.lotteryResult.upsert({
         where: { drawDate_stationCode: { drawDate: dateStr, stationCode: station } },
         update: { winningNumbers: JSON.stringify(rssData.results[station]) },
         create: { drawDate: dateStr, region, stationCode: station, winningNumbers: JSON.stringify(rssData.results[station]) }
       })
-    }
+    ))
 
-    // Xác định thứ tự ưu tiên của đài (để mapping 2dai, 3dai)
     // Xác định thứ tự ưu tiên của đài (để mapping 2dai, 3dai) chính xác theo lịch
     const DAILY_STATIONS: Record<string, Record<number, string[]>> = {
       MN: {
@@ -126,15 +133,38 @@ export async function fetchAndCheckResults(region: "MN" | "MT" | "MB", dateStr: 
       return (idxA !== -1 ? idxA : 99) - (idxB !== -1 ? idxB : 99);
     });
 
-    // 4. Lấy tất cả Phơi đang chờ dò của ngày hôm đó (hoặc tất cả pending)
+    // 4. Chỉ lấy các phơi đang chờ dò của đúng ngày và miền đã chọn.
     const bills = await prisma.bill.findMany({
-      where: { status: 'pending', region },
-      include: { details: true, customer: true }
+      where: { status: "pending", region, date: dateStr, customer: { userId: user.id } },
+      select: {
+        id: true,
+        details: {
+          select: {
+            id: true,
+            betNumber: true,
+            betType: true,
+            stationCount: true,
+            pricePerUnit: true,
+            stationAliases: true
+          }
+        },
+        customer: {
+          select: {
+            rateWin: true,
+            rateWin3: true,
+            rateWin4: true,
+            rateWinDaMNMT: true,
+            rateWinDaMB: true
+          }
+        }
+      }
     })
 
     let totalProcessed = 0
 
-    // 5. Dò số cho từng phơi
+    // 5. Dò số cho từng phơi và gom toàn bộ thao tác ghi vào một transaction.
+    const writeOperations: Prisma.PrismaPromise<unknown>[] = []
+
     for (const bill of bills) {
       let billTotalWin = 0
 
@@ -143,183 +173,168 @@ export async function fetchAndCheckResults(region: "MN" | "MT" | "MB", dateStr: 
 
         if (detail.stationAliases) {
           try {
-            const aliases: string[] = JSON.parse(detail.stationAliases)
-            if (aliases && aliases.length > 0) {
+            const parsedAliases: unknown = JSON.parse(detail.stationAliases)
+            const aliases = Array.isArray(parsedAliases)
+              ? parsedAliases.filter((alias): alias is string => typeof alias === "string")
+              : []
+
+            if (aliases.length > 0) {
               const actualStations: string[] = []
-              
+
               aliases.forEach(alias => {
-                 // Một alias có thể trùng nhiều đài (vd "bd" = Bình Dương + Bình Định)
-                 // -> ưu tiên đài nào thực sự có mặt trong kết quả của miền/ngày đang dò
-                 const officialNames = dynamicAliasMap[alias] || [alias]
-                 const normAlias = normalizeStation(alias)
+                // Một alias có thể trùng nhiều đài (vd "bd" = Bình Dương + Bình Định)
+                // -> ưu tiên đài nào thực sự có mặt trong kết quả của miền/ngày đang dò
+                const officialNames = dynamicAliasMap[alias] || [alias]
+                const normAlias = normalizeStation(alias)
 
-                 let found: string | undefined
-                 for (const officialName of officialNames) {
-                    const normOfficial = normalizeStation(officialName)
-                    found = orderedStations.find(st => {
-                       let normSt = normalizeStation(st);
-                       // Special case for TPHCM where RSS returns "Hồ Chí Minh" or similar variants
-                       if (normSt.includes("hochiminh") || normSt.includes("hchminh") || normSt.includes("hcm")) {
-                          normSt = "tphcm";
-                        }
+                let found: string | undefined
+                for (const officialName of officialNames) {
+                  const normOfficial = normalizeStation(officialName)
+                  found = orderedStations.find(st => {
+                    let normSt = normalizeStation(st)
+                    // Special case for TPHCM where RSS returns "Hồ Chí Minh" or similar variants
+                    if (normSt.includes("hochiminh") || normSt.includes("hchminh") || normSt.includes("hcm")) {
+                      normSt = "tphcm"
+                    }
 
-                        return normSt === normOfficial ||
-                               normSt.includes(normOfficial) ||
-                               normOfficial.includes(normSt);
-                     })
-                     if (found) break
-                 }
+                    return normSt === normOfficial ||
+                      normSt.includes(normOfficial) ||
+                      normOfficial.includes(normSt)
+                  })
+                  if (found) break
+                }
 
-                 // Fallback cuối cùng: alias là đoạn con của tên đài trên RSS
-                 // (chỉ dùng khi không khớp được tên chính thức, tránh dính nhầm như "cm" khớp vào "tphcm")
-                 if (!found) {
-                    found = orderedStations.find(st => {
-                       let normSt = normalizeStation(st);
-                       if (normSt.includes("hochiminh") || normSt.includes("hchminh") || normSt.includes("hcm")) {
-                          normSt = "tphcm";
-                        }
-                        return normSt.includes(normAlias);
-                     })
-                 }
+                // Fallback cuối cùng: alias là đoạn con của tên đài trên RSS.
+                if (!found) {
+                  found = orderedStations.find(st => {
+                    let normSt = normalizeStation(st)
+                    if (normSt.includes("hochiminh") || normSt.includes("hchminh") || normSt.includes("hcm")) {
+                      normSt = "tphcm"
+                    }
+                    return normSt.includes(normAlias)
+                  })
+                }
 
-                 if (found && !actualStations.includes(found)) {
-                    actualStations.push(found);
-                 }
-              });
- 
-               if (actualStations.length > 0) {
-                  stationsToCheck = actualStations
-               }
-             }
-           } catch (e) {
-             console.error(e)
-           }
-         }
- 
-         let hitCount = 0
-         const hitStations: string[] = []
-         
-         const typeNorm = detail.betType.toLowerCase().replace(/đ/g, "d");
-         const isDa = typeNorm === "da" ||
-                      typeNorm.includes("xien") ||
-                      typeNorm === "x" ||
-                      typeNorm === "d" ||
-                      typeNorm === "dx";
+                if (found && !actualStations.includes(found)) actualStations.push(found)
+              })
 
-         if (isDa && detail.betNumber.includes("-")) {
-            const [num1, num2] = detail.betNumber.split("-");
-            let totalHits1 = 0;
-            let totalHits2 = 0;
-            
-            stationsToCheck.forEach(st => {
-               const prizes = rssData.results[st];
-               if (!prizes) return;
-               
-               const winNumbers1 = getWinningNumbersForBet(prizes, detail.betType, num1.length, region);
-               const winNumbers2 = getWinningNumbersForBet(prizes, detail.betType, num2.length, region);
-               
-               const hits1 = winNumbers1.filter(win => win === num1).length || 0;
-               const hits2 = winNumbers2.filter(win => win === num2).length || 0;
-               
-               if (hits1 > 0) {
-                  totalHits1 += hits1;
-                  if (!hitStations.includes(st)) hitStations.push(st);
-               }
-               if (hits2 > 0) {
-                  totalHits2 += hits2;
-                  if (!hitStations.includes(st)) hitStations.push(st);
-               }
-            });
-            
-            if (totalHits1 > 0 && totalHits2 > 0) {
-               hitCount = Math.min(totalHits1, totalHits2);
-            } else {
-               hitStations.length = 0; // Clear stations if not winning
+              if (actualStations.length > 0) stationsToCheck = actualStations
             }
-         } else {
-            const digitCount = detail.betNumber.length;
-            stationsToCheck.forEach(st => {
-               const prizes = rssData.results[st];
-               if (!prizes) return;
-               
-               const winNumbers = getWinningNumbersForBet(prizes, detail.betType, digitCount, region);
-               const hitsInObj = winNumbers.filter(win => win === detail.betNumber).length || 0;
-               
-               if (hitsInObj > 0) {
-                  hitCount += hitsInObj;
-                  if (!hitStations.includes(st)) {
-                     hitStations.push(st);
-                  }
-               }
-            });
-         }
-          let winAmount = 0;
-          if (hitCount > 0) {
-            const is4D = detail.betNumber.length === 4;
-            const is3D = detail.betNumber.length === 3 || 
-                         detail.betType.toLowerCase().includes("bacang") || 
-                         detail.betType.toLowerCase().includes("xc") || 
-                         detail.betType.toLowerCase().includes("xiuchu");
-                          
-            const isDa = detail.betType.toLowerCase() === "da" ||
-                         detail.betType.toLowerCase().includes("xien") ||
-                         detail.betType === "x" ||
-                         detail.betType === "d" ||
-                         detail.betType === "dx";
-                          
-            let winRateApplied = bill.customer.rateWin;
-            if (is4D) {
-              winRateApplied = (bill.customer as any).rateWin4 ?? 5500;
-            } else if (is3D) {
-              winRateApplied = (bill.customer as any).rateWin3 ?? 650;
-            } else if (isDa) {
-              winRateApplied = region === "MB" 
-                ? ((bill.customer as any).rateWinDaMB ?? 650)
-                : ((bill.customer as any).rateWinDaMNMT ?? 650);
+          } catch (error) {
+            console.error(error)
+          }
+        }
+
+        let hitCount = 0
+        const hitStations: string[] = []
+        const typeNorm = detail.betType.toLowerCase().replace(/đ/g, "d")
+        const isDa = typeNorm === "da" ||
+          typeNorm.includes("xien") ||
+          typeNorm === "x" ||
+          typeNorm === "d" ||
+          typeNorm === "dx"
+
+        if (isDa && detail.betNumber.includes("-")) {
+          const [num1, num2] = detail.betNumber.split("-")
+          let totalHits1 = 0
+          let totalHits2 = 0
+
+          stationsToCheck.forEach(station => {
+            const prizes = rssData.results[station]
+            if (!prizes) return
+
+            const hits1 = getWinningNumbersForBet(prizes, detail.betType, num1.length, region)
+              .filter(win => win === num1).length
+            const hits2 = getWinningNumbersForBet(prizes, detail.betType, num2.length, region)
+              .filter(win => win === num2).length
+
+            if (hits1 > 0) {
+              totalHits1 += hits1
+              if (!hitStations.includes(station)) hitStations.push(station)
             }
-            
-            winAmount = hitCount * detail.pricePerUnit * winRateApplied;
- 
-           // Update SQL BillDetail
-           await prisma.billDetail.update({
-             where: { id: detail.id },
-             data: { 
-               isWin: true, 
-               winQuantity: hitCount,
-               winStations: JSON.stringify(hitStations)
-             }
-           })
- 
-           billTotalWin += winAmount
-         } else {
-             // Update là đã soát nhưng thua
-             await prisma.billDetail.update({
-                 where: { id: detail.id },
-                 data: { isWin: false, winQuantity: 0, winStations: null }
-             })
-         }
-       }
- 
-       // Đánh dấu Phơi đã được xử lý (Processed) để không bị dò lại
-       await prisma.bill.update({
-         where: { id: bill.id },
-         data: { status: 'processed', totalPrize: billTotalWin }
-       })
- 
-       totalProcessed++
-     }
- 
-     revalidatePath("/results")
-     return { 
-       success: true, 
-       message: `Thành công! Đã kết toán ${totalProcessed} phơi đánh ${region}.`,
-       rssTitle: rssData.title,
-       rssResults: rssData.results
-     }
- 
-   } catch (error: unknown) {
-     console.error("Lỗi dò tự động:", error)
-     const message = error instanceof Error ? error.message : "Lỗi không xác định khi kết toán."
-     return { success: false, error: message }
-   }
- }
+            if (hits2 > 0) {
+              totalHits2 += hits2
+              if (!hitStations.includes(station)) hitStations.push(station)
+            }
+          })
+
+          if (totalHits1 > 0 && totalHits2 > 0) {
+            hitCount = Math.min(totalHits1, totalHits2)
+          } else {
+            hitStations.length = 0
+          }
+        } else {
+          const digitCount = detail.betNumber.length
+          stationsToCheck.forEach(station => {
+            const prizes = rssData.results[station]
+            if (!prizes) return
+
+            const hits = getWinningNumbersForBet(prizes, detail.betType, digitCount, region)
+              .filter(win => win === detail.betNumber).length
+            if (hits > 0) {
+              hitCount += hits
+              if (!hitStations.includes(station)) hitStations.push(station)
+            }
+          })
+        }
+
+        if (hitCount > 0) {
+          const is4D = detail.betNumber.length === 4
+          const is3D = detail.betNumber.length === 3 ||
+            typeNorm.includes("bacang") ||
+            typeNorm.includes("xc") ||
+            typeNorm.includes("xiuchu")
+
+          let winRateApplied = bill.customer.rateWin
+          if (is4D) {
+            winRateApplied = bill.customer.rateWin4
+          } else if (is3D) {
+            winRateApplied = bill.customer.rateWin3
+          } else if (isDa) {
+            winRateApplied = region === "MB"
+              ? bill.customer.rateWinDaMB
+              : bill.customer.rateWinDaMNMT
+          }
+
+          billTotalWin += hitCount * detail.pricePerUnit * winRateApplied
+        }
+
+        writeOperations.push(prisma.billDetail.update({
+          where: { id: detail.id },
+          data: hitCount > 0
+            ? {
+                isWin: true,
+                winQuantity: hitCount,
+                winStations: JSON.stringify(hitStations)
+              }
+            : { isWin: false, winQuantity: 0, winStations: null }
+        }))
+      }
+
+      writeOperations.push(prisma.bill.update({
+        where: { id: bill.id },
+        data: { status: "processed", totalPrize: billTotalWin }
+      }))
+      totalProcessed++
+    }
+
+    if (writeOperations.length > 0) {
+      await prisma.$transaction([...writeOperations])
+    }
+
+    updateTag(getBillsCacheTag(user.id))
+    revalidatePath("/results")
+    revalidatePath("/tickets/new")
+    revalidatePath("/statistics")
+    return {
+      success: true,
+      message: `Thành công! Đã kết toán ${totalProcessed} phơi đánh ${region}.`,
+      rssTitle: rssData.title,
+      rssResults: rssData.results
+    }
+  } catch (error: unknown) {
+    console.error("Lỗi dò tự động:", error)
+    const message = error instanceof Error ? error.message : "Lỗi không xác định khi kết toán."
+    return { success: false, error: message }
+  }
+}

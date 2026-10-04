@@ -39,7 +39,23 @@ export async function logout() {
 export async function getSession() {
   const session = (await cookies()).get("session")?.value;
   if (!session) return null;
-  return await decrypt(session);
+  return await decrypt(session).catch(() => null);
+}
+
+export interface SessionUser {
+  id: string;
+  username: string;
+}
+
+export async function requireUser(): Promise<SessionUser> {
+  const session = await getSession();
+  const user = session?.user;
+
+  if (!user || typeof user.id !== "string" || typeof user.username !== "string") {
+    throw new Error("Unauthorized");
+  }
+
+  return user;
 }
 
 export async function updateSession(request: NextRequest) {
@@ -58,4 +74,3 @@ export async function updateSession(request: NextRequest) {
   });
   return res;
 }
-

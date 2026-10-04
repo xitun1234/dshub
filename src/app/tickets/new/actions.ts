@@ -1,34 +1,51 @@
 "use server"
 
+import { getBillsCacheTag } from "@/lib/bills"
+import { requireUser } from "@/lib/auth"
 import prisma from "@/lib/prisma"
-import { parseTicketInput } from "@/lib/parser"
+import { normalizeTicketInput, parseTicketInput } from "@/lib/parser"
 import { getParserConfigs } from "@/lib/stations"
+import { revalidatePath, updateTag } from "next/cache"
 
 export async function createTicket(formData: FormData) {
+  const user = await requireUser()
   const customerId = formData.get("customerId") as string
   const region = formData.get("region") as string
   const dateStr = formData.get("date") as string
   const rawInput = formData.get("rawInput") as string
+  const normalizedInput = normalizeTicketInput(rawInput || "")
   
-  if (!customerId || !rawInput) {
+  if (!customerId || !normalizedInput) {
     return { error: "Vui lòng chọn khách và nhập phơi" }
+  }
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dateStr || "")) {
+    return { error: "Ngày lập phơi không hợp lệ" }
+  }
+  if (region !== "MN" && region !== "MT" && region !== "MB") {
+    return { error: "Miền xổ số không hợp lệ" }
   }
 
   // Fetch parser config from database
   const parserConfig = await getParserConfigs()
 
   // Parse logic again on server
-  const parsed = parseTicketInput(rawInput, region, parserConfig)
+  const parsed = parseTicketInput(normalizedInput, region, parserConfig)
   
   if (!parsed.isValid || parsed.bets.length === 0) {
     return { error: "Phơi không hợp lệ hoặc sai cú pháp" }
   }
 
   // Lấy tỷ lệ xác từ khách hàng
-  const customer = await prisma.customer.findUnique({ where: { id: customerId } })
-  const capitalRate = customer?.ratePay || 0.72
-  const capitalRate3 = customer?.ratePay3 || 0.72
-  const capitalRate4 = (customer as any)?.ratePay4 || 0.72
+  const customer = await prisma.customer.findFirst({
+    where: { id: customerId, userId: user.id, isActive: true },
+    select: { ratePay: true, ratePay3: true, ratePay4: true }
+  })
+  if (!customer) {
+    return { error: "Khách hàng không tồn tại hoặc không thuộc tài khoản này" }
+  }
+  const capitalRate = customer.ratePay || 0.72
+  const capitalRate3 = customer.ratePay3 || 0.72
+  const capitalRate4 = customer.ratePay4 || 0.72
  
   const totalCapital = parsed.bets.reduce((sum, bet) => {
     const rate = bet.isFourDigit ? capitalRate4 : (bet.isThreeDigit ? capitalRate3 : capitalRate)
@@ -77,7 +94,7 @@ export async function createTicket(formData: FormData) {
       customerId,
       region,
       date: dateStr,
-      rawContent: rawInput,
+      rawContent: normalizedInput,
       totalInvestment: totalCapital,
       details: {
         create: detailCreates
@@ -85,16 +102,19 @@ export async function createTicket(formData: FormData) {
     }
   })
 
+  updateTag(getBillsCacheTag(user.id))
   return { success: true, ticketId: bill.id }
 }
 
-import { revalidatePath } from "next/cache"
-
 export async function deleteTicket(id: string) {
   try {
-    await prisma.bill.delete({
-      where: { id }
+    const user = await requireUser()
+    const result = await prisma.bill.deleteMany({
+      where: { id, customer: { userId: user.id } }
     })
+    if (result.count === 0) return { error: "Phơi không tồn tại hoặc không thuộc tài khoản này" }
+
+    updateTag(getBillsCacheTag(user.id))
     revalidatePath("/tickets/new")
     return { success: true }
   } catch (err: unknown) {

@@ -1,68 +1,81 @@
-import prisma from "@/lib/prisma"
-import { TicketForm } from "./components/ticket-form"
-import Link from "next/link"
+import { getDailyBills } from "@/lib/bills"
+import { getCustomers } from "@/lib/customers"
+import { requireUser } from "@/lib/auth"
 import { getParserConfigs } from "@/lib/stations"
+import { CustomerTabs } from "./components/customer-tabs"
+import { TicketForm } from "./components/ticket-form"
+
+const REGIONS = new Set(["MN", "MT", "MB"])
 
 export default async function NewTicketPage(props: {
   searchParams: Promise<{ region?: string, customer?: string, date?: string }>
 }) {
   const resolvedSearchParams = await props.searchParams
-  const currentRegion = resolvedSearchParams.region || "MN"
-  const currentCustomerId = resolvedSearchParams.customer
-  const currentDateParam = resolvedSearchParams.date || new Date().toISOString().split('T')[0]
+  const user = await requireUser()
+  const currentRegion = REGIONS.has(resolvedSearchParams.region || "")
+    ? resolvedSearchParams.region as "MN" | "MT" | "MB"
+    : "MN"
+  const today = new Date().toISOString().split("T")[0]
+  const currentDate = /^\d{4}-\d{2}-\d{2}$/.test(resolvedSearchParams.date || "")
+    ? resolvedSearchParams.date!
+    : today
 
-  const customers = await prisma.customer.findMany({
-    where: { isActive: true },
-    orderBy: { createdAt: 'asc' },
-    select: {
-      id: true,
-      name: true,
-      isActive: true,
-      phone: true,
-      ratePay: true,
-      ratePay3: true,
-      ratePay4: true,
-      rateWin: true,
-      rateWin3: true,
-      rateWin4: true,
-      rateWinDaMNMT: true,
-      rateWinDaMB: true,
-      role: true,
-      createdAt: true,
-      updatedAt: true
+  const [allCustomers, parserConfig, dailyBills] = await Promise.all([
+    getCustomers(user.id),
+    getParserConfigs(),
+    getDailyBills(user.id, currentDate)
+  ])
+  const customers = allCustomers.filter(customer => customer.isActive)
+
+  const activeCustomer = customers.find(customer => customer.id === resolvedSearchParams.customer) || customers[0]
+  const customerMap = new Map(customers.map(customer => [customer.id, customer]))
+  const regionalSummaries: Record<string, Record<string, {
+    name: string
+    role: string
+    totalPoints: number
+    winPoints: number
+    totalInvestment: number
+    totalPrize: number
+  }>> = { MN: {}, MT: {}, MB: {} }
+
+  dailyBills.forEach(bill => {
+    const customer = customerMap.get(bill.customerId)
+    if (!customer || !regionalSummaries[bill.region]) return
+
+    const totalPoints = bill.details.reduce((total, detail) => {
+      const type = detail.betType.toLowerCase().replace(/đ/g, "d")
+      const isDaOrXien = type === "da" || type.includes("xien") || type === "x" || type === "d" || type === "dx"
+      const numberCount = detail.betNumber.split(/[-_,]+/).filter(Boolean).length
+      return total + (isDaOrXien
+        ? detail.pricePerUnit * 2 * (detail.stationCount || 1)
+        : detail.pricePerUnit * (detail.stationCount || 1) * numberCount)
+    }, 0)
+    const winPoints = bill.details.reduce(
+      (total, detail) => total + (detail.isWin ? detail.pricePerUnit * detail.winQuantity : 0),
+      0
+    )
+
+    const summary = regionalSummaries[bill.region][bill.customerId] ?? {
+      name: customer.name,
+      role: customer.role,
+      totalPoints: 0,
+      winPoints: 0,
+      totalInvestment: 0,
+      totalPrize: 0
     }
+
+    summary.totalPoints += totalPoints
+    summary.winPoints += winPoints
+    summary.totalInvestment += bill.totalInvestment || 0
+    summary.totalPrize += bill.totalPrize || 0
+    regionalSummaries[bill.region][bill.customerId] = summary
   })
 
-  const activeCustomer = customers.find(c => c.id === currentCustomerId) || customers[0]
-
-  const allBills = await prisma.bill.findMany({
-    where: { 
-      date: currentDateParam
-    },
-    include: {
-      customer: {
-        select: {
-          id: true,
-          name: true,
-          rateWin: true,
-          rateWin3: true,
-          rateWin4: true,
-          rateWinDaMNMT: true,
-          rateWinDaMB: true,
-          ratePay: true,
-          ratePay3: true,
-          ratePay4: true,
-          role: true
-        }
-      },
-      details: true
-    },
-    orderBy: { createdAt: 'desc' }
-  })
-
-  const bills = allBills.filter(b => b.customerId === activeCustomer?.id)
-
-  const parserConfig = await getParserConfigs()
+  const customerBills = activeCustomer
+    ? dailyBills
+        .filter(bill => bill.customerId === activeCustomer.id)
+        .map(bill => ({ ...bill, customer: activeCustomer }))
+    : []
 
   return (
     <div className="container mx-auto p-4 md:p-8 max-w-6xl">
@@ -73,48 +86,27 @@ export default async function NewTicketPage(props: {
         </p>
       </div>
 
-      {/* TABS KHÁCH HÀNG */}
-      {customers && customers.length > 0 && (
-        <div className="flex flex-wrap gap-2 mb-8 pb-2">
-          {customers.map(c => {
-            const isActive = activeCustomer?.id === c.id
-            return (
-              <Link 
-                key={c.id} 
-                href={`/tickets/new?customer=${c.id}${currentRegion ? `&region=${currentRegion}` : ''}${currentDateParam ? `&date=${currentDateParam}` : ''}`}
-              >
-                <button 
-                  className={`px-6 py-3 rounded-xl transition-all font-bold whitespace-nowrap border text-sm ${
-                    isActive 
-                    ? "bg-gradient-to-br from-primary to-accent text-white border-primary-light shadow-[0_8px_20px_var(--primary-glow)] scale-105 z-10" 
-                    : "bg-card-bg/50 text-foreground/80 border-border/50 hover:text-primary hover:bg-primary/10 hover:border-primary/30"
-                  }`}
-                >
-                  {c.name}
-                  <small className={`block text-[10px] mt-1 font-black tracking-wider uppercase ${isActive ? "text-white/80" : "text-foreground/40"}`}>
-                    Xác: {(c as any).ratePay || '0.72'} - Ăn: {(c as any).rateWin || '71'}
-                  </small>
-                </button>
-              </Link>
-            )
-          })}
-        </div>
+      {customers.length > 0 && (
+        <CustomerTabs
+          customers={customers}
+          activeCustomerId={activeCustomer?.id}
+          initialRegion={currentRegion}
+          initialDate={currentDate}
+        />
       )}
 
       {activeCustomer ? (
-        <>
-          <TicketForm 
-            customer={activeCustomer as any} 
-            initialRegion={currentRegion as "MN"|"MT"|"MB"} 
-            bills={bills as any} 
-            allBills={allBills as any}
-            customers={customers as any}
-            initialDate={currentDateParam}
-            parserConfig={parserConfig}
-          />
-        </>
+        <TicketForm
+          customer={activeCustomer}
+          initialRegion={currentRegion}
+          bills={customerBills}
+          customers={customers}
+          initialDate={currentDate}
+          parserConfig={parserConfig}
+          regionalSummaries={regionalSummaries}
+        />
       ) : (
-        <div className="py-12 text-center text-foreground/50 border border-border border-dashed rounded-lg">
+        <div className="py-12 text-center text-muted-foreground border border-border border-dashed rounded-2xl bg-card/50">
           Vui lòng tạo ít nhất 1 khách hàng / thầu để tiếp tục.
         </div>
       )}

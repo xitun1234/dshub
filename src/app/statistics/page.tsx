@@ -1,7 +1,11 @@
-import prisma from "@/lib/prisma"
-import { Card, CardContent } from "@/components/ui/card"
+import { getDailyStatisticsBills } from "@/lib/bills"
+import { getCustomers } from "@/lib/customers"
+import { requireUser } from "@/lib/auth"
+import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { CustomerStatCard } from "./components/customer-stat-card"
+
+export const dynamic = 'force-dynamic'
 
 function formatMoney(amount: number): string {
   const absolute = Math.abs(Math.round(amount));
@@ -15,52 +19,59 @@ export default async function StatisticsPage(props: {
   searchParams: Promise<{ date?: string }>
 }) {
   const resolvedSearchParams = await props.searchParams
-  
-  // Default to today if no date provided
+  const user = await requireUser()
+
+  // Default to today if no valid date was provided.
   const today = new Date().toISOString().split('T')[0]
-  const selectedDate = resolvedSearchParams.date || today
+  const selectedDate = /^\d{4}-\d{2}-\d{2}$/.test(resolvedSearchParams.date || "")
+    ? resolvedSearchParams.date!
+    : today
 
-  // Fetch all active customers to show in stats - Sorted by creation date
-  const customers = await prisma.customer.findMany({
-    orderBy: { createdAt: 'asc' }
-  })
+  const [customers, bills] = await Promise.all([
+    getCustomers(user.id),
+    getDailyStatisticsBills(user.id, selectedDate)
+  ])
+  const customerMap = new Map(customers.map(customer => [customer.id, customer]))
 
-  // Fetch bills for the selected date
-  const bills = await prisma.bill.findMany({
-    where: {
-      date: selectedDate
-    },
-    include: {
-      customer: true
-    }
-  })
+  type WinningDetail = {
+    betNumber: string
+    betType: string
+    winQuantity: number
+    pricePerUnit: number
+    prize: number
+    stations: string[]
+  }
 
-  // Group stats by customer and region
   const stats: Record<string, {
+    id: string;
     name: string;
     isActive: boolean;
     role: string;
-    MN: { inv: number; prize: number };
-    MT: { inv: number; prize: number };
-    MB: { inv: number; prize: number };
+    MN: { inv: number; prize: number; winningDetails: WinningDetail[] };
+    MT: { inv: number; prize: number; winningDetails: WinningDetail[] };
+    MB: { inv: number; prize: number; winningDetails: WinningDetail[] };
     total: { inv: number; prize: number; profit: number };
   }> = {}
-  
-  ;(customers as any[]).forEach((c) => {
-    stats[c.id] = {
-      name: c.name,
-      isActive: c.isActive,
-      role: c.role,
-      MN: { inv: 0, prize: 0 },
-      MT: { inv: 0, prize: 0 },
-      MB: { inv: 0, prize: 0 },
+
+  customers.forEach((customer) => {
+    stats[customer.id] = {
+      id: customer.id,
+      name: customer.name,
+      isActive: customer.isActive,
+      role: customer.role,
+      MN: { inv: 0, prize: 0, winningDetails: [] },
+      MT: { inv: 0, prize: 0, winningDetails: [] },
+      MB: { inv: 0, prize: 0, winningDetails: [] },
       total: { inv: 0, prize: 0, profit: 0 }
     }
   })
 
   bills.forEach((bill) => {
     if (!stats[bill.customerId]) return
-    
+
+    const customer = customerMap.get(bill.customerId)
+    if (!customer) return
+
     const region = bill.region as "MN" | "MT" | "MB"
     const inv = bill.totalInvestment || 0
     const prize = bill.totalPrize || 0
@@ -68,6 +79,42 @@ export default async function StatisticsPage(props: {
     if (stats[bill.customerId][region]) {
       stats[bill.customerId][region].inv += inv
       stats[bill.customerId][region].prize += prize
+
+      if (bill.status === "processed" && bill.totalPrize > 0) {
+        bill.details.forEach((detail) => {
+          const typeNorm = detail.betType.toLowerCase().replace(/đ/g, "d");
+          const is4D = detail.betNumber.length === 4;
+          const is3D = detail.betNumber.length === 3 || typeNorm.includes("bacang") || typeNorm.includes("xc") || typeNorm.includes("xiuchu");
+          const isDa = typeNorm === "da" || typeNorm.includes("xien") || typeNorm === "x" || typeNorm === "d" || typeNorm === "dx";
+
+          let winRateApplied = customer.rateWin;
+          if (is4D) winRateApplied = customer.rateWin4 ?? 5500;
+          else if (is3D) winRateApplied = customer.rateWin3 ?? 650;
+          else if (isDa) winRateApplied = bill.region === "MB" ? (customer.rateWinDaMB ?? 650) : (customer.rateWinDaMNMT ?? 650);
+
+          const detailPrize = detail.winQuantity * detail.pricePerUnit * winRateApplied;
+          let parsedStations: unknown = []
+          if (detail.winStations) {
+            try {
+              parsedStations = JSON.parse(detail.winStations)
+            } catch {
+              parsedStations = []
+            }
+          }
+          const stations = Array.isArray(parsedStations)
+            ? parsedStations.filter((station): station is string => typeof station === "string")
+            : typeof parsedStations === "string" ? [parsedStations] : []
+
+          stats[bill.customerId][region].winningDetails.push({
+            betNumber: detail.betNumber,
+            betType: detail.betType,
+            winQuantity: detail.winQuantity,
+            pricePerUnit: detail.pricePerUnit,
+            prize: detailPrize,
+            stations
+          });
+        });
+      }
     }
     
     stats[bill.customerId].total.inv += inv
@@ -105,7 +152,7 @@ export default async function StatisticsPage(props: {
         <Card className="bg-card-bg border-border p-2">
           <form method="GET" className="flex items-end gap-3">
             <div className="space-y-1">
-              <label className="text-xs text-foreground/60 px-1">Chọn ngày</label>
+              <label className="text-xs text-muted-foreground font-semibold px-1">Chọn ngày</label>
               <input 
                 type="date" 
                 name="date" 
@@ -122,13 +169,13 @@ export default async function StatisticsPage(props: {
 
       <div className="space-y-6">
         {sortedStats.length === 0 && (
-          <div className="p-12 text-center text-foreground/50 border border-border border-dashed rounded-lg bg-card-bg/20">
+          <div className="p-12 text-center text-muted-foreground border border-border border-dashed rounded-2xl bg-card/50">
             Không có dữ liệu trong khoảng thời gian này.
           </div>
         )}
         
         <div className="grid grid-cols-1 gap-6 pb-20">
-        {sortedStats.map((s, idx) => {
+        {sortedStats.map((s) => {
           let copyText = ""
           const isThau = s.role === 'THAU'
           
@@ -151,7 +198,7 @@ export default async function StatisticsPage(props: {
           copyText += `Tổng ${profitWord} ${formatMoney(Math.abs(tProfit))}`
           
           return (
-            <CustomerStatCard key={idx} stat={{...s, copyText} as any} />
+            <CustomerStatCard key={s.id} stat={{ ...s, copyText }} />
           )
         })}
         </div>

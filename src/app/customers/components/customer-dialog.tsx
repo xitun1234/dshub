@@ -11,6 +11,7 @@ import {
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
+import { CUSTOMER_DEFAULTS } from "@/lib/customer-defaults"
 import { useState, useTransition } from "react"
 import { createCustomer, updateCustomer } from "../actions"
 
@@ -32,7 +33,7 @@ type Customer = {
 export function CustomerDialog({ customer, children }: { customer?: Customer, children: React.ReactNode }) {
   const [open, setOpen] = useState(false)
   const [isPending, startTransition] = useTransition()
-  const [isActive, setIsActive] = useState(customer ? customer.isActive !== false : true)
+  const [isActive, setIsActive] = useState(customer?.isActive ?? CUSTOMER_DEFAULTS.isActive)
 
   async function onSubmit(formData: FormData) {
     startTransition(async () => {
@@ -57,7 +58,7 @@ export function CustomerDialog({ customer, children }: { customer?: Customer, ch
         <form action={onSubmit} className="grid gap-4 py-4">
           <div className="grid grid-cols-4 items-center gap-4">
             <Label htmlFor="name" className="text-right">Tên gọi</Label>
-            <Input id="name" name="name" defaultValue={customer?.name} className="col-span-3 bg-foreground/5" required />
+            <Input id="name" name="name" defaultValue={customer?.name ?? ""} className="col-span-3 bg-foreground/5" required />
           </div>
 
           <div className="grid grid-cols-4 items-center gap-4">
@@ -65,7 +66,7 @@ export function CustomerDialog({ customer, children }: { customer?: Customer, ch
             <select 
               id="role" 
               name="role" 
-              defaultValue={customer?.role || "KHACH"}
+              defaultValue={customer?.role ?? CUSTOMER_DEFAULTS.role}
               className="col-span-3 flex h-9 w-full rounded-md border border-input bg-foreground/5 px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
             >
               <option value="KHACH">Khách hàng (Người chơi)</option>
@@ -78,7 +79,7 @@ export function CustomerDialog({ customer, children }: { customer?: Customer, ch
             <div className="col-span-3 flex items-center gap-3">
               <Switch id="isActive" checked={isActive} onCheckedChange={(v) => setIsActive(!!v)} />
               <input type="hidden" name="isActive" value={isActive ? "on" : "off"} />
-              <span className={`text-sm font-semibold ${isActive ? "text-emerald-500" : "text-foreground/50"}`}>
+              <span className={`text-sm font-semibold ${isActive ? "text-emerald-500" : "text-muted-foreground"}`}>
                 {isActive ? "Đang hoạt động (hiển thị khi Lên đơn)" : "Đã tắt (ẩn khỏi Lên đơn)"}
               </span>
             </div>
@@ -86,35 +87,35 @@ export function CustomerDialog({ customer, children }: { customer?: Customer, ch
 
           <div className="grid grid-cols-4 items-center gap-4">
             <Label htmlFor="ratePay" className="text-right text-teal-400 font-bold">Xác 2 số</Label>
-            <Input id="ratePay" name="ratePay" type="number" step="0.01" defaultValue={customer?.ratePay || 0.72} className="col-span-3 bg-foreground/5" required />
+            <Input id="ratePay" name="ratePay" type="number" step="0.01" defaultValue={customer?.ratePay ?? CUSTOMER_DEFAULTS.ratePay} className="col-span-3 bg-foreground/5" required />
           </div>
           <div className="grid grid-cols-4 items-center gap-4">
             <Label htmlFor="ratePay3" className="text-right text-sky-400 font-bold">Xác 3 số</Label>
-            <Input id="ratePay3" name="ratePay3" type="number" step="0.01" defaultValue={customer?.ratePay3 || 0.72} className="col-span-3 bg-foreground/5" required />
+            <Input id="ratePay3" name="ratePay3" type="number" step="0.01" defaultValue={customer?.ratePay3 ?? CUSTOMER_DEFAULTS.ratePay3} className="col-span-3 bg-foreground/5" required />
           </div>
           <div className="grid grid-cols-4 items-center gap-4">
             <Label htmlFor="ratePay4" className="text-right text-blue-400 font-bold">Xác 4 số</Label>
-            <Input id="ratePay4" name="ratePay4" type="number" step="0.01" defaultValue={customer?.ratePay4 || 0.72} className="col-span-3 bg-foreground/5" required />
+            <Input id="ratePay4" name="ratePay4" type="number" step="0.01" defaultValue={customer?.ratePay4 ?? CUSTOMER_DEFAULTS.ratePay4} className="col-span-3 bg-foreground/5" required />
           </div>
           <div className="grid grid-cols-4 items-center gap-4">
             <Label htmlFor="rateWin" className="text-right text-rose-400 font-bold">Ăn 2 số</Label>
-            <Input id="rateWin" name="rateWin" type="number" step="0.1" defaultValue={customer?.rateWin || 71} className="col-span-3 bg-foreground/5" required />
+            <Input id="rateWin" name="rateWin" type="number" step="0.1" defaultValue={customer?.rateWin ?? CUSTOMER_DEFAULTS.rateWin} className="col-span-3 bg-foreground/5" required />
           </div>
           <div className="grid grid-cols-4 items-center gap-4">
             <Label htmlFor="rateWin3" className="text-right text-amber-500 font-bold">Ăn 3 số</Label>
-            <Input id="rateWin3" name="rateWin3" type="number" step="1" defaultValue={customer?.rateWin3 || 650} className="col-span-3 bg-foreground/5" required />
+            <Input id="rateWin3" name="rateWin3" type="number" step="1" defaultValue={customer?.rateWin3 ?? CUSTOMER_DEFAULTS.rateWin3} className="col-span-3 bg-foreground/5" required />
           </div>
           <div className="grid grid-cols-4 items-center gap-4">
             <Label htmlFor="rateWin4" className="text-right text-pink-500 font-bold">Ăn 4 số</Label>
-            <Input id="rateWin4" name="rateWin4" type="number" step="1" defaultValue={customer?.rateWin4 || 5500} className="col-span-3 bg-foreground/5" required />
+            <Input id="rateWin4" name="rateWin4" type="number" step="1" defaultValue={customer?.rateWin4 ?? CUSTOMER_DEFAULTS.rateWin4} className="col-span-3 bg-foreground/5" required />
           </div>
           <div className="grid grid-cols-4 items-center gap-4">
             <Label htmlFor="rateWinDaMNMT" className="text-right text-emerald-400 font-bold">Ăn đá MN-MT</Label>
-            <Input id="rateWinDaMNMT" name="rateWinDaMNMT" type="number" step="1" defaultValue={customer?.rateWinDaMNMT || 650} className="col-span-3 bg-foreground/5" required />
+            <Input id="rateWinDaMNMT" name="rateWinDaMNMT" type="number" step="1" defaultValue={customer?.rateWinDaMNMT ?? CUSTOMER_DEFAULTS.rateWinDaMNMT} className="col-span-3 bg-foreground/5" required />
           </div>
           <div className="grid grid-cols-4 items-center gap-4">
             <Label htmlFor="rateWinDaMB" className="text-right text-purple-400 font-bold">Ăn đá MB</Label>
-            <Input id="rateWinDaMB" name="rateWinDaMB" type="number" step="1" defaultValue={customer?.rateWinDaMB || 650} className="col-span-3 bg-foreground/5" required />
+            <Input id="rateWinDaMB" name="rateWinDaMB" type="number" step="1" defaultValue={customer?.rateWinDaMB ?? CUSTOMER_DEFAULTS.rateWinDaMB} className="col-span-3 bg-foreground/5" required />
           </div>
 
 
