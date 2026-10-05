@@ -1,5 +1,6 @@
 "use server"
 
+import { calculateTotalInvestment } from "@/lib/bill-calculations"
 import { getBillsCacheTag } from "@/lib/bills"
 import { requireUser } from "@/lib/auth"
 import prisma from "@/lib/prisma"
@@ -43,29 +44,6 @@ export async function createTicket(formData: FormData) {
   if (!customer) {
     return { error: "Khách hàng không tồn tại hoặc không thuộc tài khoản này" }
   }
-  const capitalRate = customer.ratePay || 0.72
-  const capitalRate3 = customer.ratePay3 || 0.72
-  const capitalRate4 = customer.ratePay4 || 0.72
- 
-  const totalCapital = parsed.bets.reduce((sum, bet) => {
-    const rate = bet.isFourDigit ? capitalRate4 : (bet.isThreeDigit ? capitalRate3 : capitalRate)
-    const typeLower = bet.type.toLowerCase().replace(/đ/g, "d");
-    const isDa = typeLower === "da" ||
-                 typeLower.includes("xien") ||
-                 typeLower === "x" ||
-                 typeLower === "d" ||
-                 typeLower === "dx";
-    
-    let points = 0
-    if (isDa) {
-      points = bet.amount * bet.numbers.length * 2 * bet.stationCount * bet.multiplier
-    } else {
-      points = bet.amount * bet.numbers.length * bet.multiplier * bet.stationCount
-    }
-
-    return sum + (points * rate)
-  }, 0)
-
   // Tạo mảng chi tiết (tách từng con số)
   const detailCreates: {
     betNumber: string;
@@ -87,6 +65,8 @@ export async function createTicket(formData: FormData) {
       })
     })
   })
+
+  const totalCapital = calculateTotalInvestment(detailCreates, customer)
 
   // Lưu phơi
   const bill = await prisma.bill.create({

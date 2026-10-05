@@ -198,7 +198,11 @@ export default async function StatisticsPage(props: {
           copyText += `Tổng ${profitWord} ${formatMoney(Math.abs(tProfit))}`
           
           return (
-            <CustomerStatCard key={s.id} stat={{ ...s, copyText }} />
+            <CustomerStatCard
+              key={s.id}
+              stat={{ ...s, copyText }}
+              selectedDate={selectedDate}
+            />
           )
         })}
         </div>

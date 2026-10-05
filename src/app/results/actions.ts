@@ -2,6 +2,7 @@
 
 import type { Prisma } from "@prisma/client"
 import { revalidatePath, updateTag } from "next/cache"
+import { calculateTotalInvestment, isDaBetType } from "@/lib/bill-calculations"
 import { getBillsCacheTag } from "@/lib/bills"
 import { requireUser } from "@/lib/auth"
 import prisma from "@/lib/prisma"
@@ -82,17 +83,12 @@ export async function fetchAndCheckResults(region: "MN" | "MT" | "MB", dateStr: 
     }
 
     const dynamicAliasMap = await getDynamicAliasMap()
-    // 1. Kéo RSS xskt - Pass dateStr for precise filtering
-    const rssData = await fetchLotteryRSS(region, dayIndex, dateStr)
-    
-    // 2. Lưu/Cập nhật KQXS vào Database
-    await Promise.all(Object.keys(rssData.results).map(station =>
-      prisma.lotteryResult.upsert({
-        where: { drawDate_stationCode: { drawDate: dateStr, stationCode: station } },
-        update: { winningNumbers: JSON.stringify(rssData.results[station]) },
-        create: { drawDate: dateStr, region, stationCode: station, winningNumbers: JSON.stringify(rssData.results[station]) }
-      })
-    ))
+    // Mỗi lần người dùng bấm dò đều lấy bản RSS mới nhất.
+    const rssData = await fetchLotteryRSS(region, dayIndex, dateStr, { fresh: true })
+    const resultStations = Object.keys(rssData.results)
+    if (resultStations.length === 0) {
+      return { success: false, error: "Nguồn RSS chưa có dữ liệu kết quả để dò." }
+    }
 
     // Xác định thứ tự ưu tiên của đài (để mapping 2dai, 3dai) chính xác theo lịch
     const DAILY_STATIONS: Record<string, Record<number, string[]>> = {
@@ -133,9 +129,9 @@ export async function fetchAndCheckResults(region: "MN" | "MT" | "MB", dateStr: 
       return (idxA !== -1 ? idxA : 99) - (idxB !== -1 ? idxB : 99);
     });
 
-    // 4. Chỉ lấy các phơi đang chờ dò của đúng ngày và miền đã chọn.
+    // Luôn dò lại toàn bộ phơi của đúng ngày và miền, kể cả phơi đã kết toán.
     const bills = await prisma.bill.findMany({
-      where: { status: "pending", region, date: dateStr, customer: { userId: user.id } },
+      where: { region, date: dateStr, customer: { userId: user.id } },
       select: {
         id: true,
         details: {
@@ -144,12 +140,16 @@ export async function fetchAndCheckResults(region: "MN" | "MT" | "MB", dateStr: 
             betNumber: true,
             betType: true,
             stationCount: true,
+            multiplier: true,
             pricePerUnit: true,
             stationAliases: true
           }
         },
         customer: {
           select: {
+            ratePay: true,
+            ratePay3: true,
+            ratePay4: true,
             rateWin: true,
             rateWin3: true,
             rateWin4: true,
@@ -162,8 +162,22 @@ export async function fetchAndCheckResults(region: "MN" | "MT" | "MB", dateStr: 
 
     let totalProcessed = 0
 
-    // 5. Dò số cho từng phơi và gom toàn bộ thao tác ghi vào một transaction.
-    const writeOperations: Prisma.PrismaPromise<unknown>[] = []
+    // Dò số cho từng phơi và ghi kết quả xổ số + kết toán trong cùng transaction.
+    const writeOperations: Prisma.PrismaPromise<unknown>[] = resultStations.map(station =>
+      prisma.lotteryResult.upsert({
+        where: { drawDate_stationCode: { drawDate: dateStr, stationCode: station } },
+        update: {
+          region,
+          winningNumbers: JSON.stringify(rssData.results[station])
+        },
+        create: {
+          drawDate: dateStr,
+          region,
+          stationCode: station,
+          winningNumbers: JSON.stringify(rssData.results[station])
+        }
+      })
+    )
 
     for (const bill of bills) {
       let billTotalWin = 0
@@ -228,11 +242,7 @@ export async function fetchAndCheckResults(region: "MN" | "MT" | "MB", dateStr: 
         let hitCount = 0
         const hitStations: string[] = []
         const typeNorm = detail.betType.toLowerCase().replace(/đ/g, "d")
-        const isDa = typeNorm === "da" ||
-          typeNorm.includes("xien") ||
-          typeNorm === "x" ||
-          typeNorm === "d" ||
-          typeNorm === "dx"
+        const isDa = isDaBetType(detail.betType)
 
         if (isDa && detail.betNumber.includes("-")) {
           const [num1, num2] = detail.betNumber.split("-")
@@ -311,9 +321,10 @@ export async function fetchAndCheckResults(region: "MN" | "MT" | "MB", dateStr: 
         }))
       }
 
+      const totalInvestment = calculateTotalInvestment(bill.details, bill.customer)
       writeOperations.push(prisma.bill.update({
         where: { id: bill.id },
-        data: { status: "processed", totalPrize: billTotalWin }
+        data: { status: "processed", totalInvestment, totalPrize: billTotalWin }
       }))
       totalProcessed++
     }
@@ -328,7 +339,9 @@ export async function fetchAndCheckResults(region: "MN" | "MT" | "MB", dateStr: 
     revalidatePath("/statistics")
     return {
       success: true,
-      message: `Thành công! Đã kết toán ${totalProcessed} phơi đánh ${region}.`,
+      message: totalProcessed > 0
+        ? `Đã dò và cập nhật lại ${totalProcessed} phơi ${region} theo kết quả mới nhất.`
+        : `Đã tải kết quả ${region} mới nhất; ngày này chưa có phơi cần cập nhật.`,
       rssTitle: rssData.title,
       rssResults: rssData.results
     }

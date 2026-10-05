@@ -12,6 +12,8 @@ export function DeleteButton({ id }: { id: string }) {
     <Button 
       variant="destructive" 
       size="icon"
+      className="h-11 w-11"
+      aria-label="Xóa khách hàng"
       disabled={isPending}
       onClick={() => {
         if (confirm("Bạn có chắc chắn muốn xóa khách hàng này?")) {

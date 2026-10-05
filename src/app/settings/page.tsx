@@ -2,14 +2,53 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { LogOut, User, Settings as SettingsIcon, ShieldCheck, Sun, Moon, Monitor } from "lucide-react"
+import { AlertCircle, Database, LogOut, User, Settings as SettingsIcon, ShieldCheck, Sun, Moon, Monitor, Trash2 } from "lucide-react"
 import { logoutUser } from "@/app/auth/actions"
+import { deleteAllBills } from "./actions"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger
+} from "@/components/ui/alert-dialog"
 import { useTheme } from "next-themes"
-import { useEffect, useState } from "react"
+import { useEffect, useState, useTransition } from "react"
 
 export default function SettingsPage() {
   const { theme, setTheme } = useTheme()
   const [mounted, setMounted] = useState(false)
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [deleteMessage, setDeleteMessage] = useState<{
+    type: "success" | "error"
+    text: string
+  } | null>(null)
+  const [isDeleting, startDeleteTransition] = useTransition()
+
+  const handleDeleteAllBills = () => {
+    if (isDeleting) return
+
+    setDeleteMessage(null)
+    startDeleteTransition(async () => {
+      const result = await deleteAllBills()
+      if (!result.success) {
+        setDeleteMessage({ type: "error", text: result.error })
+        return
+      }
+
+      setDeleteDialogOpen(false)
+      setDeleteMessage({
+        type: "success",
+        text: result.count === 0
+          ? "Tài khoản hiện không có phơi nào để xoá."
+          : `Đã xoá vĩnh viễn ${result.count} phơi và toàn bộ chi tiết liên quan.`
+      })
+    })
+  }
 
   // Avoid hydration mismatch
   useEffect(() => {
@@ -122,6 +161,85 @@ export default function SettingsPage() {
                 ĐĂNG XUẤT NGAY
               </Button>
             </div>
+          </CardContent>
+        </Card>
+
+        {/* Data Section */}
+        <Card className="overflow-hidden border-rose-500/30 bg-card/90 shadow-xl backdrop-blur-sm">
+          <CardHeader className="border-b border-rose-500/20 bg-rose-500/[0.06]">
+            <CardTitle className="flex items-center gap-2 text-lg font-bold text-foreground">
+              <Database className="h-5 w-5 text-rose-500" />
+              Dữ Liệu
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-6">
+            <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
+              <div className="max-w-2xl space-y-1.5">
+                <p className="text-sm font-bold text-foreground">Xoá toàn bộ dữ liệu phơi</p>
+                <p className="text-sm leading-6 text-muted-foreground">
+                  Xoá vĩnh viễn toàn bộ phơi và chi tiết phơi của các khách hàng thuộc tài khoản này.
+                  Danh sách khách hàng, tỷ lệ và cấu hình hệ thống vẫn được giữ nguyên.
+                </p>
+              </div>
+
+              <AlertDialog open={deleteDialogOpen} onOpenChange={(open) => !isDeleting && setDeleteDialogOpen(open)}>
+                <AlertDialogTrigger asChild>
+                  <Button
+                    variant="destructive"
+                    className="h-11 shrink-0 gap-2 px-5 font-bold shadow-lg shadow-rose-500/20"
+                    disabled={isDeleting}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                    XOÁ TOÀN BỘ DỮ LIỆU
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent className="border-border bg-card-bg text-foreground">
+                  <AlertDialogHeader>
+                    <AlertDialogTitle className="flex items-center gap-2 text-xl font-bold text-rose-500">
+                      <AlertCircle className="h-6 w-6" />
+                      Xác nhận xoá toàn bộ phơi?
+                    </AlertDialogTitle>
+                    <AlertDialogDescription className="text-muted-foreground">
+                      Toàn bộ phơi và chi tiết phơi của các khách hàng thuộc tài khoản này sẽ bị xoá
+                      vĩnh viễn. Khách hàng và cấu hình vẫn được giữ lại. Hành động này không thể hoàn tác.
+                    </AlertDialogDescription>
+                    {deleteMessage?.type === "error" && (
+                      <div
+                        role="alert"
+                        className="mt-3 rounded-lg border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-sm font-medium text-rose-600 dark:text-rose-400"
+                      >
+                        {deleteMessage.text}
+                      </div>
+                    )}
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel className="border-border" disabled={isDeleting}>
+                      Hủy bỏ
+                    </AlertDialogCancel>
+                    <AlertDialogAction
+                      onClick={(event) => {
+                        event.preventDefault()
+                        handleDeleteAllBills()
+                      }}
+                      disabled={isDeleting}
+                      className="bg-rose-600 font-bold text-white hover:bg-rose-700"
+                    >
+                      {isDeleting ? "Đang xoá..." : "Xoá vĩnh viễn"}
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            </div>
+
+            {deleteMessage?.type === "success" && (
+              <div
+                role="status"
+                aria-live="polite"
+                className="mt-5 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm font-medium text-emerald-600 dark:text-emerald-400"
+              >
+                {deleteMessage.text}
+              </div>
+            )}
           </CardContent>
         </Card>
 

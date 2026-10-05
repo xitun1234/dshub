@@ -1,8 +1,10 @@
 "use client"
 
 import React, { useState } from "react"
+import Link from "next/link"
 import { Card, CardContent } from "@/components/ui/card"
-import { ChevronDown, ChevronUp } from "lucide-react"
+import { Button } from "@/components/ui/button"
+import { ChevronDown, ChevronUp, ImageDown } from "lucide-react"
 
 interface WinningDetail {
   betNumber: string
@@ -20,6 +22,7 @@ interface RegionData {
 }
 
 interface CustomerStat {
+  id: string
   name: string
   isActive: boolean
   role: string
@@ -41,10 +44,12 @@ function formatMoney(amount: number): string {
 function formatPoints(amount: number): string {
   return new Intl.NumberFormat("vi-VN").format(amount);
 }
-export function CustomerStatCard({ 
-  stat
-}: { 
+export function CustomerStatCard({
+  stat,
+  selectedDate
+}: {
   stat: CustomerStat
+  selectedDate: string
 }) {
   const [isExpanded, setIsExpanded] = useState(false)
   const [expandedRegions, setExpandedRegions] = useState<Record<string, boolean>>({})
@@ -63,8 +68,8 @@ export function CustomerStatCard({
 
   return (
     <Card className="bg-card-bg border-border shadow-sm overflow-hidden transition-all duration-300">
-      <div 
-        className="bg-foreground/5 border-b border-border px-6 py-4 flex justify-between items-center cursor-pointer hover:bg-foreground/10 transition-colors"
+      <div
+        className="flex cursor-pointer flex-col gap-3 border-b border-border bg-foreground/5 px-4 py-4 transition-colors hover:bg-foreground/10 sm:flex-row sm:items-center sm:justify-between sm:px-6"
         onClick={() => setIsExpanded(!isExpanded)}
       >
         <div className="flex items-center gap-3">
@@ -76,10 +81,27 @@ export function CustomerStatCard({
             {!stat.isActive && <span className="text-[10px] px-2 py-0.5 rounded-md bg-muted text-muted-foreground border border-border font-medium">Ngừng</span>}
           </h3>
         </div>
-        <div className={`font-bold text-lg ${tProfit > 0 ? 'text-emerald-500' : tProfit < 0 ? 'text-rose-500' : 'text-muted-foreground'}`}>
-          {stat.role === "THAU" 
-            ? (tProfit >= 0 ? "Bù" : "Thu") 
-            : (tProfit >= 0 ? "Thu" : "Bù")} {formatMoney(Math.abs(tProfit))}k
+        <div className="flex flex-wrap items-center justify-between gap-3 sm:justify-end sm:gap-4">
+          <div className={`font-bold text-lg ${tProfit > 0 ? 'text-emerald-500' : tProfit < 0 ? 'text-rose-500' : 'text-muted-foreground'}`}>
+            {stat.role === "THAU"
+              ? (tProfit >= 0 ? "Bù" : "Thu")
+              : (tProfit >= 0 ? "Thu" : "Bù")} {formatMoney(Math.abs(tProfit))}k
+          </div>
+          <Button
+            asChild
+            variant="outline"
+            className="h-11"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <Link
+              href={`/statistics/export?customer=${encodeURIComponent(stat.id)}&date=${encodeURIComponent(selectedDate)}`}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <ImageDown className="h-4 w-4" />
+              Xuất chi tiết
+            </Link>
+          </Button>
         </div>
       </div>
       

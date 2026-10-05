@@ -37,7 +37,7 @@ export default async function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body
-        className={`${jakartaSans.variable} ${robotoMono.variable} antialiased bg-background text-foreground flex flex-col md:flex-row h-screen overflow-hidden`}
+        className={`${jakartaSans.variable} ${robotoMono.variable} antialiased bg-background text-foreground flex min-h-dvh flex-col md:h-screen md:flex-row md:overflow-hidden`}
       >
         <ThemeProvider
           attribute="class"
@@ -46,7 +46,7 @@ export default async function RootLayout({
           disableTransitionOnChange
         >
           <Sidebar user={user} />
-          <main className="flex-1 overflow-y-auto w-full pt-14 pb-20 md:pt-0 md:pb-0">
+          <main className="w-full min-w-0 flex-1 pt-14 pb-[calc(5rem+env(safe-area-inset-bottom))] md:h-full md:overflow-y-auto md:pt-0 md:pb-0">
             {children}
           </main>
         </ThemeProvider>

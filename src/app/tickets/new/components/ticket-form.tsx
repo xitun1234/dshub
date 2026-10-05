@@ -121,7 +121,7 @@ export function TicketForm({
 
   const [rawInput, setRawInput] = useState("")
   const [region, setRegion] = useState<"MN" | "MT" | "MB">(initialRegion)
-  const [stickyCollapsed, setStickyCollapsed] = useState(false)
+  const [stickyCollapsed, setStickyCollapsed] = useState(true)
   const [collapsedRegions, setCollapsedRegions] = useState<Record<string, boolean>>({
     MN: false,
     MT: false,
@@ -384,7 +384,12 @@ export function TicketForm({
             <div className="space-y-2 pt-2">
               <Label>Phơi số (Cú pháp: [Số đài]. [Loại]. [Các số]. [Tiền])</Label>
               <Textarea
-                placeholder="Ví dụ:&#10;2dai. bao. 08-12. 20n&#10;TPHCM. da. 34-45. 10n"
+                placeholder={`Ví dụ:
+3dai. 12 35. b50n
+2dai. 12 24 42. dx5n
+dt. 437. 7lo. 10n
+2dai. 138. b10n
+3dai. 50. dauduoi. 200n`}
                 rows={10}
                 className="font-mono text-base bg-foreground/5 text-foreground border-border/50 resize-y focus-visible:ring-primary"
                 value={rawInput}
@@ -484,18 +489,20 @@ export function TicketForm({
       </div>
 
       {/* FLOAT STICKY NOTE POPUP */}
-      <div className="fixed right-4 bottom-20 md:bottom-4 z-50 transition-all duration-300">
+      <div className="fixed right-3 bottom-[calc(4.5rem+env(safe-area-inset-bottom))] z-40 max-w-[calc(100vw-1.5rem)] transition-all duration-300 md:right-4 md:bottom-4">
         {stickyCollapsed ? (
           <Button
             type="button"
-            className="flex items-center gap-2 rounded-full h-12 px-4 bg-gradient-to-r from-primary to-accent text-white shadow-lg border border-primary-light hover:scale-105 transition-transform"
+            className="flex h-12 min-w-11 items-center gap-2 rounded-full border border-primary-light bg-gradient-to-r from-primary to-accent px-4 text-white shadow-lg transition-transform hover:scale-105"
+            aria-expanded="false"
+            aria-controls="daily-points-note"
             onClick={() => setStickyCollapsed(false)}
           >
-            <Pin className="w-4 h-4 animate-bounce" />
+            <Pin className="w-4 h-4" />
             <span className="font-bold text-xs uppercase tracking-wider">Xem Điểm Nhanh</span>
           </Button>
         ) : (
-          <Card className="w-80 border-border/80 bg-card-bg/95 backdrop-blur-md shadow-2xl overflow-hidden rounded-2xl flex flex-col border-2 max-h-[450px]">
+          <Card id="daily-points-note" className="flex max-h-[min(450px,calc(100dvh-9rem))] w-[min(20rem,calc(100vw-1.5rem))] flex-col overflow-hidden rounded-2xl border-2 border-border/80 bg-card-bg/95 shadow-2xl backdrop-blur-md">
             <CardHeader className="bg-foreground/5 border-b border-border/40 py-3 px-4 flex flex-row justify-between items-center flex-none">
               <CardTitle className="text-sm font-black text-foreground flex items-center gap-1.5 uppercase tracking-wider">
                 <Pin className="w-4 h-4 text-primary" />
@@ -505,7 +512,10 @@ export function TicketForm({
                 type="button"
                 variant="ghost"
                 size="icon"
-                className="w-7 h-7 hover:bg-muted text-muted-foreground rounded-lg shrink-0"
+                className="h-11 w-11 shrink-0 rounded-lg text-muted-foreground hover:bg-muted"
+                aria-label="Thu gọn ghi chú điểm hôm nay"
+                aria-expanded="true"
+                aria-controls="daily-points-note"
                 onClick={() => setStickyCollapsed(true)}
               >
                 <Minimize2 className="w-4 h-4" />

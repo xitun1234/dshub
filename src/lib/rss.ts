@@ -29,19 +29,29 @@ function decodeHTMLEntities(text: string): string {
   });
 }
 
-export async function fetchLotteryRSS(region: "MN" | "MT" | "MB", dayIndex: number, dateStr?: string) {
+export async function fetchLotteryRSS(
+  region: "MN" | "MT" | "MB",
+  dayIndex: number,
+  dateStr?: string,
+  options: { fresh?: boolean } = {}
+) {
   let rssUrlPath = 'ket-qua-xo-so-mien-nam-xsmn.rss'
   if (region === 'MT') rssUrlPath = 'ket-qua-xo-so-mien-trung-xsmt.rss'
   if (region === 'MB') rssUrlPath = 'ket-qua-xo-so-mien-bac-xsmb.rss'
 
   const rssUrl = `https://xosodaiphat.com/${rssUrlPath}`
 
-  // Cache RSS for 60 seconds to avoid hitting the source too hard during multiple clicks
-  const response = await fetch(rssUrl, { next: { revalidate: 60 } })
+  const response = await fetch(
+    rssUrl,
+    options.fresh ? { cache: "no-store" } : { next: { revalidate: 60 } }
+  )
+  if (!response.ok) {
+    throw new Error(`Không thể tải kết quả xổ số (HTTP ${response.status}).`)
+  }
+
   const xmlData = await response.text()
-  
   if (!xmlData || !xmlData.includes("<rss")) {
-    throw new Error("Cannot fetch valid RSS data.")
+    throw new Error("Nguồn RSS trả về dữ liệu không hợp lệ.")
   }
 
   const parser = new XMLParser()
