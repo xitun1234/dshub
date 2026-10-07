@@ -8,11 +8,12 @@ import {
   Settings,
   BarChart3,
   LogOut,
-  BookOpen
+  BookOpen,
+  ShieldCheck
 } from "lucide-react"
 import { logoutUser } from "@/app/auth/actions"
 
-const navigation = [
+const userNavigation = [
   { name: 'Khách hàng & Thầu', href: '/customers', icon: Users },
   { name: 'Lên Đơn (Phơi Số)', href: '/tickets/new', icon: Ticket },
   { name: 'Thống Kê 3 Miền', href: '/statistics', icon: BarChart3 },
@@ -20,11 +21,17 @@ const navigation = [
   { name: 'Cài Đặt', href: '/settings', icon: Settings },
 ]
 
-export function Sidebar({ user }: { user?: { id: string, username: string } }) {
-  const pathname = usePathname()
+const adminNavigation = [
+  { name: 'Quản lý tài khoản', href: '/admin', icon: ShieldCheck }
+]
 
-  // Hide sidebar on login and register pages
-  if (pathname === "/login" || pathname === "/register") {
+export function Sidebar({ user }: { user?: { id: string, username: string, role?: string } }) {
+  const pathname = usePathname()
+  const isAdmin = user?.role === "admin"
+  const navigation = isAdmin ? adminNavigation : userNavigation
+
+  // Hide navigation on public authentication pages.
+  if (pathname === "/login" || pathname === "/register" || pathname === "/auth/logout") {
     return null
   }
 
@@ -94,7 +101,7 @@ export function Sidebar({ user }: { user?: { id: string, username: string } }) {
             </div>
             <div className="flex flex-col min-w-0">
               <span className="text-sm font-black text-foreground truncate group-hover:text-primary transition-colors">{user?.username || 'Người dùng'}</span>
-              <span className="text-[10px] text-muted-foreground uppercase tracking-widest font-bold">Thành viên Pro</span>
+              <span className="text-[10px] text-muted-foreground uppercase tracking-widest font-bold">{isAdmin ? "Quản trị viên" : "Thành viên Pro"}</span>
             </div>
           </div>
           <button

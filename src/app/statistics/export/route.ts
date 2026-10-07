@@ -5,13 +5,18 @@ import {
   estimateStatisticsReportHeight,
   getStatisticsReport
 } from "@/lib/statistics-report"
-import { StatisticsReportImage } from "./report-image"
+import {
+  STATISTICS_REPORT_IMAGE_HEIGHT_BUFFER,
+  STATISTICS_REPORT_IMAGE_SCALE,
+  STATISTICS_REPORT_IMAGE_WIDTH,
+  StatisticsReportImage
+} from "./report-image"
 
 export const runtime = "nodejs"
 export const dynamic = "force-dynamic"
 
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/
-const MAX_IMAGE_HEIGHT = 12000
+const MAX_IMAGE_HEIGHT = 16000
 
 function isValidDate(value: string) {
   if (!DATE_PATTERN.test(value)) return false
@@ -47,7 +52,9 @@ export async function GET(request: Request) {
       return new Response("Khách hàng chưa có phơi trong ngày đã chọn.", { status: 404 })
     }
 
-    const height = estimateStatisticsReportHeight(report)
+    const height = Math.ceil(
+      estimateStatisticsReportHeight(report) * STATISTICS_REPORT_IMAGE_SCALE
+    ) + STATISTICS_REPORT_IMAGE_HEIGHT_BUFFER
     if (height > MAX_IMAGE_HEIGHT) {
       return new Response(
         "Báo cáo có quá nhiều dữ liệu để xuất thành một ảnh. Vui lòng rút gọn số phơi.",
@@ -58,7 +65,7 @@ export async function GET(request: Request) {
     return new ImageResponse(
       createElement(StatisticsReportImage, { report }),
       {
-        width: 1080,
+        width: STATISTICS_REPORT_IMAGE_WIDTH,
         height,
         headers: {
           "Cache-Control": "private, no-store, max-age=0",

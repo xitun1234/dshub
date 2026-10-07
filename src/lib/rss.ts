@@ -156,13 +156,13 @@ function parseContentLines(content: string, stationResults: Record<string, strin
     if (!l) return
     
     // Normalize prefix: 'G.1:' -> '1:', 'G.2:' -> '2:', 'DB6:' -> 'ĐB:', 'DB:' -> 'ĐB:'
-    let cleanLine = l.replace(/^G\./i, '').replace(/^DB6?/i, 'ĐB').trim()
+    const cleanLine = l.replace(/^G\./i, '').replace(/^DB6?/i, 'ĐB').trim()
     
     const separatorIndex = cleanLine.indexOf(':')
     if (separatorIndex === -1) return
 
     const key = cleanLine.substring(0, separatorIndex).trim().toUpperCase()
-    let value = cleanLine.substring(separatorIndex + 1).trim()
+    const value = cleanLine.substring(separatorIndex + 1).trim()
     
     // Split by dash (with or without spaces)
     const values = value.split(/\s*-\s*/).map(s => s.trim()).filter(s => s !== '')

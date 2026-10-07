@@ -6,7 +6,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import Link from "next/link";
 
 export default function LoginPage() {
   const [error, setError] = useState<string | null>(null);
@@ -15,9 +14,14 @@ export default function LoginPage() {
   async function handleSubmit(formData: FormData) {
     setLoading(true);
     setError(null);
-    const result = await loginUser(formData);
-    if (result?.error) {
-      setError(result.error);
+    try {
+      const result = await loginUser(formData);
+      if (result?.error) {
+        setError(result.error);
+        setLoading(false);
+      }
+    } catch {
+      setError("Không thể kết nối tới máy chủ. Vui lòng thử lại.");
       setLoading(false);
     }
   }
@@ -84,15 +88,6 @@ export default function LoginPage() {
               )}
             </Button>
           </form>
-
-          <div className="mt-8 pt-6 border-t border-border text-center">
-            <p className="text-sm text-muted-foreground">
-              Chưa có tài khoản?{" "}
-              <Link href="/register" className="text-primary hover:text-primary-light font-bold transition-colors">
-                Đăng kí ngay
-              </Link>
-            </p>
-          </div>
         </CardContent>
       </Card>
     </div>

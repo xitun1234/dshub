@@ -2,19 +2,21 @@ This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-
 
 ## Getting Started
 
-First, run the development server:
+Copy `.env.example` to `.env`, configure the database, and set:
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+```dotenv
+JWT_SECRET="a-long-random-secret-with-at-least-32-characters"
+SEED_ADMIN_PASSWORD="your-initial-admin-password"
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Create or update the single administrator account (`admin`), then start the app:
+
+```bash
+npm run db:seed
+npm run dev
+```
+
+Open [http://localhost:3000](http://localhost:3000) and sign in with username `admin`. Public account registration is disabled; the administrator creates user accounts from `/admin`.
 
 You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
 

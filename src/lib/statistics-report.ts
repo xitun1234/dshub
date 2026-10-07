@@ -12,6 +12,7 @@ export type StatisticsReportWinningDetail = {
   betNumber: string
   betType: string
   winQuantity: number
+  pricePerUnit: number
   points: number
   prize: number
   stations: string[]
@@ -204,6 +205,7 @@ export async function getStatisticsReport(
             betNumber: detail.betNumber,
             betType: detail.betType,
             winQuantity: detail.winQuantity,
+            pricePerUnit: detail.pricePerUnit,
             points: detail.pricePerUnit * detail.winQuantity,
             prize: detail.pricePerUnit * detail.winQuantity * winRate,
             stations: parseStations(detail.winStations)

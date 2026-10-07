@@ -32,7 +32,16 @@ export default async function RootLayout({
   children: React.ReactNode;
 }>) {
   const session = await getSession();
-  const user = session?.user;
+  const sessionUser = session?.user;
+  const user = sessionUser && typeof sessionUser === "object"
+    && typeof sessionUser.id === "string"
+    && typeof sessionUser.username === "string"
+    ? {
+        id: sessionUser.id,
+        username: sessionUser.username,
+        role: typeof sessionUser.role === "string" ? sessionUser.role : undefined,
+      }
+    : undefined;
 
   return (
     <html lang="en" suppressHydrationWarning>
